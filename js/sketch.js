@@ -53,12 +53,33 @@ function spawnBalls() {
     const currentTime = millis();
     if (currentTime - lastFrameTime < frameInterval) return;
     
-    while (balls.length < CONFIG.BALLS.COUNT) {
-        const x = random(100, width - 100);
-        const y = random(200, height/2);
-        const instrument = random(CONFIG.BALLS.INSTRUMENTS);
+    // Calculate how many balls we need to spawn
+    const ballsNeeded = CONFIG.BALLS.COUNT - balls.length;
+    
+    // Spawn only the needed number of balls
+    for (let i = 0; i < ballsNeeded; i++) {
+        // Optimized random position calculation
+        const x = 100 + random(CONFIG.CANVAS.WIDTH - 200);
+        const y = 100 + random(CONFIG.DRUM_MACHINE.HEIGHT, CONFIG.CANVAS.HEIGHT / 2);
+        
+        // Get unused instrument if possible
+        const usedInstruments = new Set(balls.map(ball => ball.instrument.name));
+        let instrument;
+        
+        // Try to find an unused instrument first
+        const availableInstruments = CONFIG.BALLS.INSTRUMENTS.filter(
+            inst => !usedInstruments.has(inst.name)
+        );
+        
+        if (availableInstruments.length > 0) {
+            instrument = random(availableInstruments);
+        } else {
+            instrument = random(CONFIG.BALLS.INSTRUMENTS);
+        }
+        
         balls.push(new Ball(x, y, instrument));
     }
+    
     lastFrameTime = currentTime;
 }
 
@@ -82,23 +103,24 @@ function draw() {
     drumMachine.update();
     drumMachine.draw();
     
-    // Handle ball grabbing
-    if (hand.isGrabbing) {
+    // Handle ball grabbing - only if we have a valid hand position
+    if (hand.isGrabbing && hand.confidence > CONFIG.HAND_TRACKING.CONFIDENCE_THRESHOLD) {
         // Try to grab the nearest ball within range
         let nearestBall = null;
-        let nearestDist = Infinity;
+        let nearestDistSquared = Infinity;
         
-        // Performance optimization: Use for loop instead of forEach
+        // Performance optimization: Use for loop and squared distance
         for (let i = 0; i < balls.length; i++) {
             const ball = balls[i];
             if (ball.isGrabbed) continue; // Skip already grabbed balls
             
             const dx = hand.x - ball.sprite.x;
             const dy = hand.y - ball.sprite.y;
-            const d = sqrt(dx * dx + dy * dy);
+            const distSquared = dx * dx + dy * dy;
             
-            if (d < CONFIG.HAND_TRACKING.INTERACTION_RADIUS && d < nearestDist) {
-                nearestDist = d;
+            if (distSquared < CONFIG.HAND_TRACKING.INTERACTION_RADIUS * CONFIG.HAND_TRACKING.INTERACTION_RADIUS 
+                && distSquared < nearestDistSquared) {
+                nearestDistSquared = distSquared;
                 nearestBall = ball;
             }
         }
@@ -109,20 +131,20 @@ function draw() {
     }
     
     // Update and draw balls
-    needsNewBall = false;
+    let needsRespawn = false;
     for (let i = balls.length - 1; i >= 0; i--) {
         const ball = balls[i];
         if (ball.update(hand.x, hand.y, hand.isGrabbing)) {
             ball.remove();
             balls.splice(i, 1);
-            needsNewBall = true;
+            needsRespawn = true;
         } else {
             ball.draw();
         }
     }
     
     // Spawn new balls only if needed
-    if (needsNewBall) {
+    if (needsRespawn) {
         spawnBalls();
     }
     

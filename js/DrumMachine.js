@@ -63,9 +63,21 @@ class DrumMachine {
 
     addInstrument(name, permanent = false) {
         if (!this.instruments.has(name)) {
+            // Initialize segments array with false values
+            const segments = new Array(this.segments).fill(false);
+            
+            // For temporary instruments, set next 4 segments to true
+            if (!permanent) {
+                const startBeat = (this.currentBeat + 1) % this.segments;
+                for (let i = 0; i < 4; i++) {
+                    segments[(startBeat + i) % this.segments] = true;
+                }
+            }
+            
             this.instruments.set(name, {
                 permanent,
-                segments: new Array(this.segments).fill(permanent)
+                segments,
+                playsRemaining: permanent ? -1 : 4 // Track remaining plays for temporary instruments
             });
         }
     }
@@ -93,18 +105,20 @@ class DrumMachine {
                         if (clone) {
                             clone.setVolume(this.volume);
                         }
+                        
+                        // For temporary instruments, clear the current segment after playing
+                        if (!instrument.permanent) {
+                            instrument.segments[this.currentBeat] = false;
+                            instrument.playsRemaining--;
+                            
+                            // Remove instrument if all plays are done
+                            if (instrument.playsRemaining <= 0) {
+                                this.instruments.delete(name);
+                            }
+                        }
                     } catch (error) {
                         console.warn(`Error playing sound ${name}:`, error);
                     }
-                }
-            }
-            
-            // Remove non-permanent instruments after playing
-            if (!instrument.permanent) {
-                instrument.segments[this.currentBeat] = false;
-                // Remove instrument if all segments are false
-                if (instrument.segments.every(seg => !seg)) {
-                    this.instruments.delete(name);
                 }
             }
         });
@@ -137,8 +151,15 @@ class DrumMachine {
                 if (instrument.segments[i]) {
                     const inst = CONFIG.BALLS.INSTRUMENTS.find(inst => inst.name === name);
                     if (inst) {
+                        // Draw instrument emoji with opacity based on remaining plays
+                        push();
+                        if (!instrument.permanent) {
+                            const opacity = map(instrument.playsRemaining, 0, 4, 50, 255);
+                            tint(255, opacity);
+                        }
                         textSize(24);
                         text(inst.emoji, x + segmentWidth/2 - 12, yOffset + 24);
+                        pop();
                         yOffset += 30;
                     }
                 }
