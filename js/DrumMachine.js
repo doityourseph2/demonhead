@@ -66,10 +66,11 @@ class DrumMachine {
             // Initialize segments array with false values
             const segments = new Array(this.segments).fill(false);
             
-            // For temporary instruments, set next 4 segments to true
+            // For temporary instruments, set next 16 segments to true
             if (!permanent) {
                 const startBeat = (this.currentBeat + 1) % this.segments;
-                for (let i = 0; i < 4; i++) {
+                const totalBeats = 16; // 16 beats
+                for (let i = 0; i < totalBeats; i++) {
                     segments[(startBeat + i) % this.segments] = true;
                 }
             }
@@ -77,7 +78,7 @@ class DrumMachine {
             this.instruments.set(name, {
                 permanent,
                 segments,
-                playsRemaining: permanent ? -1 : 4 // Track remaining plays for temporary instruments
+                playsRemaining: permanent ? -1 : 16 // 16 beats worth of plays
             });
         }
     }
@@ -154,13 +155,13 @@ class DrumMachine {
                         // Draw instrument emoji with opacity based on remaining plays
                         push();
                         if (!instrument.permanent) {
-                            const opacity = map(instrument.playsRemaining, 0, 4, 50, 255);
+                            const opacity = map(instrument.playsRemaining, 0, 16, 50, 255);
                             tint(255, opacity);
                         }
-                        textSize(24);
-                        text(inst.emoji, x + segmentWidth/2 - 12, yOffset + 24);
+                        textSize(20); // Slightly smaller to fit more segments
+                        text(inst.emoji, x + segmentWidth/2 - 10, yOffset + 20);
                         pop();
-                        yOffset += 30;
+                        yOffset += 25;
                     }
                 }
             });

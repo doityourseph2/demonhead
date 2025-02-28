@@ -5,7 +5,7 @@ const CONFIG = {
     },
     DRUM_MACHINE: {
         HEIGHT: 120,
-        SEGMENTS: 4,
+        SEGMENTS: 16,
         BPM: 120,
         backgroundColor: '#1E1E1E'
     },
