@@ -22,7 +22,7 @@ const INSTRUMENTS = [
 	{ name: 'clubdrums', emoji: '🎧', color: 'rgba(34, 197, 94, 0.8)', sound: null, spawnWeight: 1 },
 	{ name: 'clubsynth', emoji: '🎹', color: 'rgba(59, 130, 246, 0.8)', sound: null, spawnWeight: 1 },
 	{ name: 'melody', emoji: '🎵', color: 'rgba(236, 72, 153, 0.8)', sound: null, spawnWeight: 1 },
-	{ name: 'piano', emoji: '🎼', color: 'rgba(14, 165, 233, 0.8)', sound: null, spawnWeight: 1 },
+	{ name: 'piano2', emoji: '🎼', color: 'rgba(14, 165, 233, 0.8)', sound: null, spawnWeight: 1 },
 	{ name: 'siren', emoji: '🚨', color: 'rgba(249, 115, 22, 0.8)', sound: null, spawnWeight: 1 },
 	{ name: 'tambourine', emoji: '🔔', color: 'rgba(168, 85, 247, 0.8)', sound: null, spawnWeight: 1 },
 	{ name: 'technobass', emoji: '💫', color: 'rgba(139, 92, 246, 0.8)', sound: null, spawnWeight: 1 },
@@ -43,8 +43,8 @@ let settings = {
 	// Ball settings
 	ballDiameter: 80,
 	ballBounciness: 0.3,
-	ballFriction: 0.1,
-	ballDrag: 0.1,
+	ballFriction: 0.5,
+	ballDrag: 0.5,
 	
 	// Grid settings
 	gridOffsetX: 0.25,
@@ -447,6 +447,11 @@ function draw() {
 
 	// Handle ball throws and instrument activation
 	for (let ball of balls) {
+
+		 // Apply damping effect to ball's velocity
+        ball.vel.x *= 0.98; // Damping factor for x velocity
+        ball.vel.y *= 0.98; // Damping factor for y velocity
+
 		// Draw instrument emoji on ball
 		push();
 		fill(ball.textColor);
