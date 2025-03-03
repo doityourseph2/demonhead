@@ -16,15 +16,18 @@ let debugState = {
 
 // Instrument definitions
 const INSTRUMENTS = [
-	{ name: 'kick', emoji: '🥁', color: '#FF4136', sound: null, spawnWeight: 1 },
-	{ name: 'snare', emoji: '🪘', color: '#FF851B', sound: null, spawnWeight: 1 },
-	{ name: 'hihat', emoji: '🎪', color: '#FFDC00', sound: null, spawnWeight: 1 },
-	{ name: 'clap', emoji: '👏', color: '#2ECC40', sound: null, spawnWeight: 1 },
-	{ name: 'tom', emoji: '🥁', color: '#0074D9', sound: null, spawnWeight: 1 },
-	{ name: 'crash', emoji: '💥', color: '#B10DC9', sound: null, spawnWeight: 1 },
-	{ name: 'cymbal', emoji: '🎯', color: '#F012BE', sound: null, spawnWeight: 1 },
-	{ name: 'shaker', emoji: '🎵', color: '#01FF70', sound: null, spawnWeight: 1 },
-	{ name: 'percussion', emoji: '⭐', color: '#7FDBFF', sound: null, spawnWeight: 1 }
+	{ name: 'aliensynth', emoji: '👽', color: 'rgba(147, 51, 234, 0.8)', sound: null, spawnWeight: 1 },
+	{ name: 'basedrums', emoji: '🥁', color: 'rgba(220, 38, 38, 0.8)', sound: null, spawnWeight: 1 },
+	{ name: 'bollytrap', emoji: '🪘', color: 'rgba(234, 179, 8, 0.8)', sound: null, spawnWeight: 1 },
+	{ name: 'clubdrums', emoji: '🎧', color: 'rgba(34, 197, 94, 0.8)', sound: null, spawnWeight: 1 },
+	{ name: 'clubsynth', emoji: '🎹', color: 'rgba(59, 130, 246, 0.8)', sound: null, spawnWeight: 1 },
+	{ name: 'melody', emoji: '🎵', color: 'rgba(236, 72, 153, 0.8)', sound: null, spawnWeight: 1 },
+	{ name: 'piano', emoji: '🎼', color: 'rgba(14, 165, 233, 0.8)', sound: null, spawnWeight: 1 },
+	{ name: 'siren', emoji: '🚨', color: 'rgba(249, 115, 22, 0.8)', sound: null, spawnWeight: 1 },
+	{ name: 'tambourine', emoji: '🔔', color: 'rgba(168, 85, 247, 0.8)', sound: null, spawnWeight: 1 },
+	{ name: 'technobass', emoji: '💫', color: 'rgba(139, 92, 246, 0.8)', sound: null, spawnWeight: 1 },
+	{ name: 'typicaltrapA', emoji: '🎪', color: 'rgba(20, 184, 166, 0.8)', sound: null, spawnWeight: 1 },
+	{ name: 'typicaltrapB', emoji: '🌟', color: 'rgba(245, 158, 11, 0.8)', sound: null, spawnWeight: 1 }
 ];
 
 let settings = {
@@ -154,9 +157,11 @@ function spawnSingleBall(position = null) {
 		const instrument = getRandomInstrument();
 		let ball = new balls.Sprite(position.x, position.y);
 		ball.instrument = instrument;
-		ball.color = color(0, 0, 0, 0); // Make ball transparent
+		ball.color = instrument.color; // Use instrument color for ball
 		ball.text = instrument.emoji;
-		ball.textColor = instrument.color;
+		noStroke();
+		ball.textSize = settings.ballDiameter * 0.5;
+		ball.textColor = 'white'; // Make emoji white for better visibility
 		return ball;
 	}
 	return null;
@@ -165,79 +170,83 @@ function spawnSingleBall(position = null) {
 function setupGUI() {
 	gui = new dat.GUI();
 	
-	// All debug options in one folder
-	let debugFolder = gui.addFolder('Boundary Debug');
-	debugFolder.add(settings, 'cameraX', -width, width).name('Camera X');
-	debugFolder.add(settings, 'cameraY', -height, height).name('Camera Y');
-	debugFolder.add(settings, 'cameraScale', 0.1, 2).name('Camera Scale');
-	debugFolder.add(settings, 'boundaryThickness', 5, 50).name('Wall Thickness');
-	debugFolder.add(settings, 'boundaryOffset', -100, 100).name('Wall Offset');
-	debugFolder.add(settings, 'ballDiameter', 10, 100).name('Ball Size');
-	debugFolder.add(settings, 'ballBounciness', 0, 1).name('Bounce');
-	debugFolder.add(settings, 'ballFriction', 0, 1).name('Friction');
-	debugFolder.add(settings, 'ballDrag', 0, 1).name('Air Resistance');
-	debugFolder.add(settings, 'gridOffsetX', 0, 1).name('Spawn X');
-	debugFolder.add(settings, 'gridOffsetY', 0, 1).name('Spawn Y');
-	debugFolder.add(settings, 'gravityY', -20, 20).name('Gravity');
-	debugFolder.add(settings, 'showBoundaries').name('Show Walls');
+	// Camera Controls
+	let cameraFolder = gui.addFolder('Camera');
+	cameraFolder.add(settings, 'cameraX', -width, width).name('Position X');
+	cameraFolder.add(settings, 'cameraY', -height, height).name('Position Y');
+	cameraFolder.add(settings, 'cameraScale', 0.1, 2).name('Scale');
 	
-	// New pinch mechanics controls
+	// Ball Physics
+	let physicsFolder = gui.addFolder('Physics');
+	physicsFolder.add(settings, 'gravityY', -20, 20).name('Gravity');
+	physicsFolder.add(settings, 'ballBounciness', 0, 1).name('Bounce');
+	physicsFolder.add(settings, 'ballFriction', 0, 1).name('Friction');
+	physicsFolder.add(settings, 'ballDrag', 0, 1).name('Air Resistance');
+	
+	// Visual Settings
+	let visualFolder = gui.addFolder('Visual Settings');
+	visualFolder.add(settings, 'ballDiameter', 40, 200).name('Ball Size');
+	visualFolder.add(settings, 'instrumentLabelSize', 20, 60).name('Emoji Size');
+	visualFolder.add(settings, 'showInstrumentLabels').name('Show Labels');
+	visualFolder.add(settings, 'showBoundaries').name('Show Walls');
+	
+	// Spawn Settings
+	let spawnFolder = gui.addFolder('Spawn Settings');
+	spawnFolder.add(settings, 'gridOffsetX', 0, 1).name('Grid X Offset');
+	spawnFolder.add(settings, 'gridOffsetY', 0, 1).name('Grid Y Offset');
+	spawnFolder.add(settings, 'gridSpacingX', 0.1, 0.5).name('X Spacing');
+	spawnFolder.add(settings, 'gridSpacingY', 0.1, 0.5).name('Y Spacing');
+	
+	// Pinch Controls
 	let pinchFolder = gui.addFolder('Pinch Controls');
 	pinchFolder.add(settings, 'pinchThreshold', 20, 100).name('Grab Distance');
 	pinchFolder.add(settings, 'releaseThreshold', 50, 200).name('Release Distance');
-	pinchFolder.add(settings, 'stickyness', 0.5, 1).name('Stickyness');
+	pinchFolder.add(settings, 'pinchRadius', 20, 150).name('Grab Radius');
 	pinchFolder.add(settings, 'pinchForce', 0.5, 1).name('Grab Strength');
-	pinchFolder.add(settings, 'pinchRadius', 20, 100).name('Grab Radius');
-	pinchFolder.add(settings, 'pinchSmoothing', 0.5, 1).name('Movement Smooth');
+	pinchFolder.add(settings, 'pinchSmoothing', 0.1, 1).name('Movement Smooth');
 	
-	// Drum Machine Controls
-	let drumFolder = gui.addFolder('Drum Machine');
-	drumFolder.add(settings, 'bpm', 60, 200).name('BPM');
-	drumFolder.add(settings, 'beatWidth', 300, 800).name('Beat Width');
-	drumFolder.add(settings, 'beatHeight', 50, 200).name('Beat Height');
-	drumFolder.add(settings, 'beatSegments', 4, 32).step(4).name('Beat Segments');
-	drumFolder.addColor(settings, 'beatLineColor').name('Beat Line Color');
-	drumFolder.add(settings, 'beatLineWidth', 1, 5).name('Line Width');
-	drumFolder.add(settings, 'showBeatGrid').name('Show Grid');
-	drumFolder.add(settings, 'beatGridOpacity', 0, 1).name('Grid Opacity');
-	
-	// Updated Throw Zone Controls
+	// Throw Zones
 	let throwFolder = gui.addFolder('Throw Zones');
-	throwFolder.add(settings, 'leftThrowZone', 50, 200).name('Left Zone Width');
-	throwFolder.add(settings, 'rightThrowZone', 50, 200).name('Right Zone Width');
-	throwFolder.add(settings, 'throwZoneHeight', 100, 1000).name('Zone Height');
-	throwFolder.add(settings, 'throwZoneY', 0, 1000).name('Y Offset');
+	throwFolder.add(settings, 'leftThrowZone', 50, 200).name('Left Width');
+	throwFolder.add(settings, 'rightThrowZone', 50, 200).name('Right Width');
+	throwFolder.add(settings, 'throwZoneHeight', 100, 1000).name('Height');
+	throwFolder.add(settings, 'throwZoneY', 0, 1000).name('Y Position');
 	throwFolder.add(settings, 'showThrowZones').name('Show Zones');
-	throwFolder.add(settings, 'showThrowZoneOutline').name('Show Border');
+	throwFolder.add(settings, 'showThrowZoneOutline').name('Show Borders');
 	throwFolder.addColor(settings, 'throwZoneColor').name('Zone Color');
 	
-	// Visual Controls
-	let visualFolder = gui.addFolder('Visual Feedback');
-	visualFolder.add(settings, 'showInstrumentLabels').name('Show Labels');
-	visualFolder.add(settings, 'instrumentLabelSize', 10, 30).name('Label Size');
+	// Beat Visualization
+	let beatFolder = gui.addFolder('Beat Display');
+	beatFolder.add(settings, 'bpm', 60, 200).name('BPM');
+	beatFolder.add(settings, 'beatWidth', 300, 800).name('Grid Width');
+	beatFolder.add(settings, 'beatHeight', 50, 200).name('Grid Height');
+	beatFolder.add(settings, 'beatSegments', 4, 32).step(4).name('Segments');
+	beatFolder.addColor(settings, 'beatLineColor').name('Line Color');
+	beatFolder.add(settings, 'beatLineWidth', 1, 5).name('Line Width');
+	beatFolder.add(settings, 'showBeatGrid').name('Show Grid');
+	beatFolder.add(settings, 'beatGridOpacity', 0, 1).name('Grid Opacity');
 	
 	// Actions
 	let actionsFolder = gui.addFolder('Actions');
 	actionsFolder.add(settings, 'resetBalls').name('Reset Balls');
-	actionsFolder.add(settings, 'clearInstruments').name('Clear Beat');
+	actionsFolder.add(settings, 'clearInstruments').name('Clear All Loops');
+	actionsFolder.add(settings, 'resetBoundaries').name('Reset Boundaries');
+	actionsFolder.add(settings, 'clearErrors').name('Clear Errors');
 	
-	// Add Debug Controls folder
-	let debugControlsFolder = gui.addFolder('Debug Controls');
-	debugControlsFolder.add(settings, 'debugMode').name('Debug Mode');
-	debugControlsFolder.add(settings, 'logErrors').name('Log Errors');
-	debugControlsFolder.add(settings, 'showDebugInfo').name('Show Debug Info');
-	debugControlsFolder.add(settings, 'autoRetryOnError').name('Auto Retry');
-	debugControlsFolder.add(settings, 'maxRetries', 1, 5).step(1).name('Max Retries');
-	debugControlsFolder.add(settings, 'retryDelay', 100, 2000).name('Retry Delay');
-	debugControlsFolder.add(settings, 'resetBoundaries').name('Reset Boundaries');
-	debugControlsFolder.add(settings, 'clearErrors').name('Clear Errors');
+	// Debug
+	let debugFolder = gui.addFolder('Debug');
+	debugFolder.add(settings, 'debugMode').name('Debug Mode');
+	debugFolder.add(settings, 'logErrors').name('Log Errors');
+	debugFolder.add(settings, 'showDebugInfo').name('Show Info');
+	debugFolder.add(settings, 'autoRetryOnError').name('Auto Retry');
+	debugFolder.add(settings, 'maxRetries', 1, 5).step(1).name('Max Retries');
+	debugFolder.add(settings, 'retryDelay', 100, 2000).name('Retry Delay');
 	
-	// Open folders by default
-	debugFolder.open();
-	pinchFolder.open();
-	drumFolder.open();
+	// Open important folders by default
+	visualFolder.open();
 	throwFolder.open();
-	debugControlsFolder.open();
+	beatFolder.open();
+	actionsFolder.open();
 }
 
 function resetBallPositions() {
@@ -263,12 +272,16 @@ function preload() {
 	video = createCapture(VIDEO);
 	video.hide();
 
-	// Load instrument sounds
+	// Load loop sounds
 	INSTRUMENTS.forEach(inst => {
 		try {
-			inst.sound = loadSound(`sounds/${inst.name}.mp3`);
+			inst.sound = loadSound(`loops/${inst.name}140bpm.mp3`);
+			// Configure the sound as a loop
+			if (inst.sound) {
+				inst.sound.setLoop(true);
+			}
 		} catch (error) {
-			console.warn(`Could not load sound for ${inst.name}:`, error);
+			console.warn(`Could not load loop for ${inst.name}:`, error);
 		}
 	});
 }
@@ -451,10 +464,10 @@ function draw() {
 			let loops = 0;
 			
 			if (ball.x < settings.leftThrowZone) {
-				loops = 4;
+				loops = 16; // Increased to 16 loops for left side
 				wasThrown = true;
 			} else if (ball.x > width - settings.rightThrowZone) {
-				loops = 1;
+				loops = 4; // Changed to 4 loops for right side
 				wasThrown = true;
 			}
 			
@@ -551,63 +564,63 @@ function gotHands(results) {
 class DrumMachine {
 	constructor() {
 		this.currentBeat = 0;
-		this.totalBeats = 32; // 8 beats * 4 segments
-		this.activeInstruments = new Map(); // Map of active instruments and their durations
+		this.totalBeats = 32;
+		this.activeInstruments = new Map();
 		this.lastUpdateTime = 0;
-		this.beatInterval = (60 / settings.bpm) * 1000 / 2; // ms per beat (doubled for 32 beats)
+		this.beatInterval = (60 / settings.bpm) * 1000 / 2;
 	}
 
 	addInstrument(instrument, loops) {
-		// Remove any existing instance of this instrument
+		// If the instrument is already playing, extend its loops instead of restarting
 		if (this.activeInstruments.has(instrument.name)) {
-			this.activeInstruments.delete(instrument.name);
+			const existing = this.activeInstruments.get(instrument.name);
+			
+			// Calculate remaining loops for the current instance
+			const currentTime = millis();
+			const loopDuration = (60 / 140) * 4 * 1000; // Duration of one loop at 140 BPM
+			const elapsedTime = currentTime - existing.startTime;
+			const elapsedLoops = Math.floor(elapsedTime / loopDuration);
+			const remainingLoops = existing.remainingLoops - elapsedLoops;
+			
+			// Add new loops to the remaining loops
+			existing.remainingLoops = remainingLoops + loops;
+			
+			// Don't restart the sound since it's already playing
+			return;
 		}
 		
-		// Create a beat pattern - activate every 8th beat for this instrument
-		let beats = Array(this.totalBeats).fill(false);
-		// Add some variation to the pattern
-		for (let i = 0; i < this.totalBeats; i += 8) {
-			beats[i] = true; // Main beat
-			if (Math.random() > 0.5) beats[i + 4] = true; // Optional off-beat
-		}
-		
-		// Store the instrument with its beat pattern
-		this.activeInstruments.set(instrument.name, {
-			instrument: instrument,
-			remainingLoops: loops,
-			beats: beats
-		});
-		
-		// Immediately play the sound once when added
+		// If it's a new instrument, start playing it
 		if (instrument.sound && instrument.sound.isLoaded()) {
 			instrument.sound.play();
 		}
+		
+		// Store the instrument with its loop count
+		this.activeInstruments.set(instrument.name, {
+			instrument: instrument,
+			remainingLoops: loops,
+			startTime: millis()
+		});
 	}
 
 	update() {
 		let currentTime = millis();
+		
+		// Check for loops that need to end
+		for (let [name, data] of this.activeInstruments.entries()) {
+			const loopDuration = (60 / 140) * 4 * 1000; // Duration of one loop at 140 BPM
+			const elapsedLoops = Math.floor((currentTime - data.startTime) / loopDuration);
+			
+			if (elapsedLoops >= data.remainingLoops) {
+				if (data.instrument.sound && data.instrument.sound.isLoaded()) {
+					data.instrument.sound.stop();
+				}
+				this.activeInstruments.delete(name);
+			}
+		}
+		
+		// Update beat counter for visualization
 		if (currentTime - this.lastUpdateTime >= this.beatInterval) {
 			this.currentBeat = (this.currentBeat + 1) % this.totalBeats;
-			
-			// Play active instruments
-			for (let [name, data] of this.activeInstruments) {
-				if (data.beats[this.currentBeat]) {
-					if (data.instrument.sound && data.instrument.sound.isLoaded()) {
-						data.instrument.sound.play();
-					}
-				}
-			}
-			
-			// Update loop counts at the end of each loop
-			if (this.currentBeat === 0) {
-				for (let [name, data] of this.activeInstruments.entries()) {
-					data.remainingLoops--;
-					if (data.remainingLoops <= 0) {
-						this.activeInstruments.delete(name);
-					}
-				}
-			}
-			
 			this.lastUpdateTime = currentTime;
 		}
 	}
@@ -665,13 +678,17 @@ class DrumMachine {
 				textAlign(CENTER, CENTER);
 				fill(instrument.color);
 				
-				for (let i = 0; i < this.totalBeats; i++) {
-					if (data.beats[i]) {
-						text(instrument.emoji, 
-							 x + (i * (settings.beatWidth / this.totalBeats)),
-							 instrumentY);
-					}
-				}
+				// Calculate remaining time for this loop
+				const currentTime = millis();
+				const loopDuration = (60 / 140) * 4 * 1000; // Duration of one loop at 140 BPM
+				const elapsedTime = currentTime - data.startTime;
+				const remainingLoops = data.remainingLoops - Math.floor(elapsedTime / loopDuration);
+				
+				// Show instrument emoji and remaining loops
+				text(instrument.emoji, x + 20, instrumentY);
+				textAlign(LEFT, CENTER);
+				text(` × ${remainingLoops}`, x + 40, instrumentY);
+				
 				instrumentY += 25;
 			}
 		}
