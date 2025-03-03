@@ -4,6 +4,10 @@ let balls;
 let gui;
 let drumMachine;
 let boundaries;
+let uiOverlay;
+let sound, fft;
+let analyzer;
+let waveform;
 
 // Add debug state tracking
 let debugState = {
@@ -38,7 +42,7 @@ let settings = {
 	
 	// Boundary settings
 	boundaryThickness: 20,
-	boundaryOffset: 10,
+	boundaryOffset: 30,
 	
 	// Ball settings
 	ballDiameter: 80,
@@ -68,28 +72,28 @@ let settings = {
 	
 	// Drum machine settings
 	bpm: 120,
-	beatWidth: 600,
-	beatHeight: 100,
+	beatWidth: 1000,
+	beatHeight: 200,
 	loopDuration: 4, // seconds per loop
 	beatSegments: 16,
 	beatLineColor: '#ff0000',
-	beatLineWidth: 2,
+	beatLineWidth: 4,
 	showBeatGrid: true,
-	beatGridOpacity: 0.8,
+	beatGridOpacity: 1,
 	
 	// Ball throw detection
 	throwVelocityThreshold: 10,
 	leftThrowZone: 100,  // pixels from left edge
 	rightThrowZone: 100,  // pixels from right edge
-	throwZoneHeight: 600, // height of throw zones from top
-	throwZoneY: 300,       // Y offset from top
+	throwZoneHeight: 400, // height of throw zones from top
+	throwZoneY: 545,       // Y offset from top
 	throwZoneColor: 'rgba(255, 0, 0, 0.2)', // Visual indicator for throw zones
 	showThrowZones: true,
 	showThrowZoneOutline: true, // Show border around throw zones
 	
 	// Visual feedback
 	showInstrumentLabels: true,
-	instrumentLabelSize: 14,
+	instrumentLabelSize: 37,
 	
 	// Boundary Debug
 	debugMode: true,
@@ -105,7 +109,24 @@ let settings = {
 	},
 	clearInstruments: function() {
 		if (drumMachine) {
+			// Clear all instruments and stop all audio
+			for (let [name, data] of drumMachine.activeInstruments) {
+				// Stop both P5 sound and Tone.js player
+				if (data.instrument.sound && data.instrument.sound.isLoaded()) {
+					data.instrument.sound.stop();
+				}
+				if (data.instrument.player && data.instrument.player.loaded) {
+					data.instrument.player.stop();
+				}
+			}
 			drumMachine.activeInstruments.clear();
+			
+			// Additional safety: stop all Tone.js players
+			INSTRUMENTS.forEach(inst => {
+				if (inst.player && inst.player.loaded) {
+					inst.player.stop();
+				}
+			});
 		}
 	},
 	resetBoundaries: function() {
@@ -114,6 +135,19 @@ let settings = {
 	clearErrors: function() {
 		debugState.errors = [];
 		debugState.lastError = null;
+	},
+	// Waveform settings
+	waveform: {
+		x: 541,
+		y: 1575,
+		width: 1000,
+		height: 100,
+		scale: 1,
+		smoothing: 0.8,
+		color: '#da3832',
+		opacity: 0.5,
+		lineWidth: 4,
+		enabled: true
 	}
 };
 
@@ -125,14 +159,45 @@ let availableSpawnPositions = [];
 
 function initializeSpawnPositions() {
 	availableSpawnPositions = [];
-	for (let i = 0; i < 3; i++) {
-		for (let j = 0; j < 3; j++) {
+	
+	// Calculate playable area bounds
+	const topBound = height/3.58 + settings.boundaryThickness;  // Top boundary + thickness
+	const bottomBound = height/1.53 - settings.boundaryThickness;  // Bottom boundary - thickness
+	const leftBound = settings.boundaryOffset + settings.boundaryThickness + settings.leftThrowZone;  // Left boundary + throw zone
+	const rightBound = width - settings.boundaryOffset - settings.boundaryThickness - settings.rightThrowZone;  // Right boundary - throw zone
+	
+	// Calculate grid dimensions for more evenly distributed spawns
+	const gridCols = 4;
+	const gridRows = 3;
+	const cellWidth = (rightBound - leftBound) / gridCols;
+	const cellHeight = (bottomBound - topBound) / gridRows;
+	
+	// Create spawn positions in grid cells with some randomization
+	for (let i = 0; i < gridCols; i++) {
+		for (let j = 0; j < gridRows; j++) {
+			// Add random offset within cell
+			const randomX = leftBound + (i * cellWidth) + random(cellWidth * 0.2, cellWidth * 0.8);
+			const randomY = topBound + (j * cellHeight) + random(cellHeight * 0.2, cellHeight * 0.8);
+			
 			availableSpawnPositions.push({
-				x: width * settings.gridOffsetX + (i * width * settings.gridSpacingX),
-				y: height * settings.gridOffsetY + (j * height * settings.gridSpacingY)
+				x: randomX,
+				y: randomY
 			});
 		}
 	}
+}
+
+function getRandomSpawnPosition() {
+	// Calculate playable area bounds
+	const topBound = height/3.58 + settings.boundaryThickness;
+	const bottomBound = height/1.53 - settings.boundaryThickness;
+	const leftBound = settings.boundaryOffset + settings.boundaryThickness + settings.leftThrowZone;
+	const rightBound = width - settings.boundaryOffset - settings.boundaryThickness - settings.rightThrowZone;
+	
+	return {
+		x: random(leftBound, rightBound),
+		y: random(topBound, bottomBound)
+	};
 }
 
 function getRandomInstrument() {
@@ -147,24 +212,25 @@ function getRandomInstrument() {
 }
 
 function spawnSingleBall(position = null) {
-	// If no position provided, get a random available position
-	if (!position && availableSpawnPositions.length > 0) {
-		const randomIndex = Math.floor(Math.random() * availableSpawnPositions.length);
-		position = availableSpawnPositions.splice(randomIndex, 1)[0];
+	// If no position provided, get a random position within playable area
+	if (!position) {
+		if (availableSpawnPositions.length > 0) {
+			const randomIndex = Math.floor(Math.random() * availableSpawnPositions.length);
+			position = availableSpawnPositions.splice(randomIndex, 1)[0];
+		} else {
+			position = getRandomSpawnPosition();
+		}
 	}
 	
-	if (position) {
-		const instrument = getRandomInstrument();
-		let ball = new balls.Sprite(position.x, position.y);
-		ball.instrument = instrument;
-		ball.color = instrument.color; // Use instrument color for ball
-		ball.text = instrument.emoji;
-		noStroke();
-		ball.textSize = settings.ballDiameter * 0.5;
-		ball.textColor = 'white'; // Make emoji white for better visibility
-		return ball;
-	}
-	return null;
+	const instrument = getRandomInstrument();
+	let ball = new balls.Sprite(position.x, position.y);
+	ball.instrument = instrument;
+	ball.color = instrument.color;
+	ball.text = instrument.emoji;
+	noStroke();
+	ball.textSize = settings.ballDiameter * 0.5;
+	ball.textColor = 'white';
+	return ball;
 }
 
 function setupGUI() {
@@ -242,6 +308,20 @@ function setupGUI() {
 	debugFolder.add(settings, 'maxRetries', 1, 5).step(1).name('Max Retries');
 	debugFolder.add(settings, 'retryDelay', 100, 2000).name('Retry Delay');
 	
+	// Waveform Visualization
+	let waveformFolder = gui.addFolder('Waveform');
+	waveformFolder.add(settings.waveform, 'enabled').name('Show Waveform');
+	waveformFolder.add(settings.waveform, 'x', 0, width).name('Position X');
+	waveformFolder.add(settings.waveform, 'y', 0, height).name('Position Y');
+	waveformFolder.add(settings.waveform, 'width', 100, width).name('Width');
+	waveformFolder.add(settings.waveform, 'height', 50, 300).name('Height');
+	waveformFolder.add(settings.waveform, 'scale', 0.1, 3).name('Scale');
+	waveformFolder.add(settings.waveform, 'smoothing', 0, 0.99).name('Smoothing');
+	waveformFolder.add(settings.waveform, 'opacity', 0, 1).name('Opacity');
+	waveformFolder.add(settings.waveform, 'lineWidth', 1, 5).name('Line Width');
+	waveformFolder.addColor(settings.waveform, 'color').name('Color');
+	waveformFolder.open();
+	
 	// Open important folders by default
 	visualFolder.open();
 	throwFolder.open();
@@ -265,6 +345,9 @@ function resetBallPositions() {
 }
 
 function preload() {
+	// Load UI overlay
+	uiOverlay = loadImage('assets/demonheadui.png');
+	
 	// Load the handPose model
 	handPose = ml5.handPose({ flipped: true });
 
@@ -290,7 +373,11 @@ function setup() {
 	createCanvas(video.width, video.height);
 	displayMode(MAXED);
 	imageMode(CENTER);
-
+	userStartAudio();
+	
+	// Initialize dynamic settings after canvas is created
+	initializeSettings();
+	
 	world.gravity.y = settings.gravityY;
 	drumMachine = new DrumMachine();
 
@@ -312,6 +399,29 @@ function setup() {
 	
 	handPose.detectStart(video, gotHands);
 	debugState.setupComplete = true;
+	
+	// Initialize Tone.js analyzer
+	analyzer = new Tone.Analyser({
+		type: "waveform",
+		size: 1024,
+		smoothing: settings.waveform.smoothing
+	});
+	
+	// Create a master gain node for all instruments
+	const masterGain = new Tone.Gain().toDestination();
+	
+	// Connect analyzer to master output
+	masterGain.connect(analyzer);
+	
+	// Modify instrument sound loading to use Tone.js
+	INSTRUMENTS.forEach(inst => {
+		try {
+			inst.player = new Tone.Player(`loops/${inst.name}140bpm.mp3`).connect(masterGain);
+			inst.player.loop = true;
+		} catch (error) {
+			console.warn(`Could not load loop for ${inst.name}:`, error);
+		}
+	});
 }
 
 function updateBoundaries() {
@@ -337,7 +447,7 @@ function updateBoundaries() {
 				// Bottom
 				{
 					x: width/2,
-					y: height - settings.boundaryOffset,
+					y: height/1.53,
 					w: width,
 					h: settings.boundaryThickness
 				},
@@ -358,7 +468,7 @@ function updateBoundaries() {
 				// Top
 				{
 					x: width/2,
-					y: settings.boundaryOffset,
+					y: height/3.58,
 					w: width,
 					h: settings.boundaryThickness
 				}
@@ -397,6 +507,7 @@ function initializeBoundaries(forceReset = false) {
 		// Set up boundaries properties
 		boundaries.collider = 'static';
 		boundaries.color = 'skyblue';
+		boundaries.visible = false;
 		
 		// Update debug state
 		debugState.boundaryCount = 0;
@@ -443,7 +554,46 @@ function draw() {
 
 	// Update and draw drum machine
 	drumMachine.update();
-	drumMachine.draw();
+	drumMachine.drawBeatBar();
+
+	// Check for raised hands gesture to clear instruments
+	if (hands.length >= 2) {
+		let handsRaised = hands.filter(hand => {
+			// Get wrist keypoint (index 0 in keypoints array)
+			let wrist = hand.keypoints[0];
+			return wrist && wrist.y < height/5;
+		});
+		
+		// If both hands are raised, clear instruments
+		if (handsRaised.length >= 2) {
+			// Visual feedback - draw a highlight effect
+			push();
+			noFill();
+			stroke(255, 255, 0);
+			strokeWeight(3);
+			rect(0, 0, width, height/5);
+			pop();
+			
+			// Clear all instruments and stop all audio
+			for (let [name, data] of drumMachine.activeInstruments) {
+				// Stop both P5 sound and Tone.js player
+				if (data.instrument.sound && data.instrument.sound.isLoaded()) {
+					data.instrument.sound.stop();
+				}
+				if (data.instrument.player && data.instrument.player.loaded) {
+					data.instrument.player.stop();
+				}
+			}
+			drumMachine.activeInstruments.clear();
+			
+			// Additional safety: stop all Tone.js players
+			INSTRUMENTS.forEach(inst => {
+				if (inst.player && inst.player.loaded) {
+					inst.player.stop();
+				}
+			});
+		}
+	}
 
 	// Handle ball throws and instrument activation
 	for (let ball of balls) {
@@ -480,21 +630,17 @@ function draw() {
 				
 				// Spawn a new ball after a short delay
 				setTimeout(() => {
-					const newPosition = {
-						x: width * settings.gridOffsetX + (Math.floor(Math.random() * 3) * width * settings.gridSpacingX),
-						y: height * settings.gridOffsetY + (Math.floor(Math.random() * 3) * height * settings.gridSpacingY)
-					};
-					spawnSingleBall(newPosition);
+					spawnSingleBall(getRandomSpawnPosition());
 				}, 500);
 			}
 		}
 	}
 
 	if (hands.length > 0) {
-		for (let i = 0; i < hands.length; i++) {
-			let hand = hands[i];
-			let index = hand.index_finger_tip;
-			let thumb = hand.thumb_tip;
+	for (let i = 0; i < hands.length; i++) {
+	let hand = hands[i];
+	let index = hand.index_finger_tip;
+	let thumb = hand.thumb_tip;
 
 			let d = dist(index.x, index.y, thumb.x, thumb.y);
 			let pinchX = (index.x + thumb.x) / 2;
@@ -530,12 +676,12 @@ function draw() {
 				heldBalls.clear();
 				fill(255);
 			}
-			
-			noStroke();
-			circle(index.x, index.y, 16);
-			circle(thumb.x, thumb.y, 16);
+
+	noStroke();
+	circle(index.x, index.y, 16);
+	circle(thumb.x, thumb.y, 16);
 		}
-	}
+}
 
 	// Draw all the tracked hand points
 	for (let i = 0; i < hands.length; i++) {
@@ -552,6 +698,17 @@ function draw() {
 		}
 	}
 	
+	// Draw waveform
+	drawWaveform();
+	
+	// Draw UI overlay
+	if (uiOverlay) {
+		image(uiOverlay, width/2, height/2, width, height);
+	}
+	
+	// Draw active instruments text on top of everything
+	drumMachine.drawActiveInstruments();
+	
 	pop();
 }
 
@@ -567,65 +724,99 @@ class DrumMachine {
 		this.totalBeats = 32;
 		this.activeInstruments = new Map();
 		this.lastUpdateTime = 0;
-		this.beatInterval = (60 / settings.bpm) * 1000 / 2;
+		this.beatInterval = (60 / 140) * 1000; // Fixed to 140 BPM
+		this.beatsPerLoop = 8; // 8 beats per loop
+		this.nextCleanupTime = 0;
 	}
 
 	addInstrument(instrument, loops) {
-		// If the instrument is already playing, extend its loops instead of restarting
+		// Stop any existing instance of this instrument
 		if (this.activeInstruments.has(instrument.name)) {
 			const existing = this.activeInstruments.get(instrument.name);
-			
-			// Calculate remaining loops for the current instance
-			const currentTime = millis();
-			const loopDuration = (60 / 140) * 4 * 1000; // Duration of one loop at 140 BPM
-			const elapsedTime = currentTime - existing.startTime;
-			const elapsedLoops = Math.floor(elapsedTime / loopDuration);
-			const remainingLoops = existing.remainingLoops - elapsedLoops;
-			
-			// Add new loops to the remaining loops
-			existing.remainingLoops = remainingLoops + loops;
-			
-			// Don't restart the sound since it's already playing
-			return;
+			if (existing.instrument.player && existing.instrument.player.loaded) {
+				existing.instrument.player.stop();
+			}
 		}
 		
-		// If it's a new instrument, start playing it
-		if (instrument.sound && instrument.sound.isLoaded()) {
-			instrument.sound.play();
+		// Start the Tone.js player only
+		if (instrument.player && instrument.player.loaded) {
+			instrument.player.start();
 		}
 		
-		// Store the instrument with its loop count
+		// Store the instrument with its loop count and precise timing info
 		this.activeInstruments.set(instrument.name, {
 			instrument: instrument,
 			remainingLoops: loops,
-			startTime: millis()
+			startTime: Tone.now(),
+			startBeat: this.currentBeat,
+			lastBeat: this.currentBeat,
+			expectedEndTime: Tone.now() + (loops * this.beatsPerLoop * this.beatInterval / 1000)
 		});
 	}
 
 	update() {
-		let currentTime = millis();
+		const currentTime = Tone.now();
 		
-		// Check for loops that need to end
-		for (let [name, data] of this.activeInstruments.entries()) {
-			const loopDuration = (60 / 140) * 4 * 1000; // Duration of one loop at 140 BPM
-			const elapsedLoops = Math.floor((currentTime - data.startTime) / loopDuration);
+		// Update beat counter
+		if (millis() - this.lastUpdateTime >= this.beatInterval) {
+			this.currentBeat = (this.currentBeat + 1) % this.totalBeats;
+			this.lastUpdateTime = millis();
 			
-			if (elapsedLoops >= data.remainingLoops) {
-				if (data.instrument.sound && data.instrument.sound.isLoaded()) {
-					data.instrument.sound.stop();
+			// Process instruments on beat change
+			for (let [name, data] of this.activeInstruments) {
+				// Calculate actual beats passed
+				let beatsPassed = 0;
+				if (this.currentBeat < data.lastBeat) {
+					beatsPassed = (this.totalBeats - data.lastBeat) + this.currentBeat;
+				} else {
+					beatsPassed = this.currentBeat - data.lastBeat;
 				}
-				this.activeInstruments.delete(name);
+				
+				// Update last beat
+				data.lastBeat = this.currentBeat;
+				
+				// Check for loop completion
+				if (beatsPassed > 0 && this.currentBeat % this.beatsPerLoop === 0) {
+					data.remainingLoops--;
+					
+					// Remove instrument if no loops remain
+					if (data.remainingLoops <= 0) {
+						this.stopAndRemoveInstrument(name);
+					}
+				}
 			}
 		}
 		
-		// Update beat counter for visualization
-		if (currentTime - this.lastUpdateTime >= this.beatInterval) {
-			this.currentBeat = (this.currentBeat + 1) % this.totalBeats;
-			this.lastUpdateTime = currentTime;
+		// Periodic cleanup check (every 100ms)
+		if (millis() > this.nextCleanupTime) {
+			this.cleanupExpiredInstruments();
+			this.nextCleanupTime = millis() + 100;
 		}
 	}
 
-	draw() {
+	stopAndRemoveInstrument(name) {
+		const data = this.activeInstruments.get(name);
+		if (data) {
+			// Stop Tone.js player
+			if (data.instrument.player && data.instrument.player.loaded) {
+				data.instrument.player.stop();
+			}
+			// Remove from active instruments
+			this.activeInstruments.delete(name);
+		}
+	}
+
+	cleanupExpiredInstruments() {
+		const currentTime = Tone.now();
+		for (let [name, data] of this.activeInstruments) {
+			// Check if instrument has exceeded its expected duration
+			if (currentTime >= data.expectedEndTime) {
+				this.stopAndRemoveInstrument(name);
+			}
+		}
+	}
+
+	drawBeatBar() {
 		push();
 		// Draw throw zones if enabled
 		if (settings.showThrowZones) {
@@ -650,48 +841,84 @@ class DrumMachine {
 		}
 
 		// Draw beat segments
-		let segmentWidth = settings.beatWidth / 4;
-		let x = (width - settings.beatWidth) / 2;
-		let y = 50;
+		let segmentWidth = settings.beatWidth / 8;
+		let beatBarX = (width - settings.beatWidth) / 2;
+		let beatBarY = 300;
 
 		if (settings.showBeatGrid) {
 			// Draw segment backgrounds with configurable opacity
-			for (let i = 0; i < 4; i++) {
-				fill(i % 2 === 0 ? `rgba(42, 42, 42, ${settings.beatGridOpacity})` 
-								: `rgba(26, 26, 26, ${settings.beatGridOpacity})`);
-				rect(x + (i * segmentWidth), y, segmentWidth, settings.beatHeight);
+			for (let i = 0; i < 8; i++) {
+				fill(i % 2 === 0 ? `rgba(118, 39, 36, ${settings.beatGridOpacity})` 
+								: `rgba(83, 28, 16, ${settings.beatGridOpacity})`);
+				rect(beatBarX + (i * segmentWidth), beatBarY, segmentWidth, settings.beatHeight);
 			}
 		}
 
 		// Draw beat line with configured color and width
 		stroke(settings.beatLineColor);
 		strokeWeight(settings.beatLineWidth);
-		let beatX = x + (this.currentBeat * (settings.beatWidth / this.totalBeats));
-		line(beatX, y, beatX, y + settings.beatHeight);
+		let beatX = beatBarX + (this.currentBeat * (settings.beatWidth / this.totalBeats));
+		line(beatX, beatBarY, beatX, beatBarY + settings.beatHeight);
+		pop();
+	}
 
-		// Draw active instruments
-		if (settings.showInstrumentLabels) {
-			let instrumentY = y + 20;
-			for (let [name, data] of this.activeInstruments) {
-				let instrument = data.instrument;
-				textSize(settings.instrumentLabelSize);
-				textAlign(CENTER, CENTER);
-				fill(instrument.color);
-				
-				// Calculate remaining time for this loop
-				const currentTime = millis();
-				const loopDuration = (60 / 140) * 4 * 1000; // Duration of one loop at 140 BPM
-				const elapsedTime = currentTime - data.startTime;
-				const remainingLoops = data.remainingLoops - Math.floor(elapsedTime / loopDuration);
-				
-				// Show instrument emoji and remaining loops
-				text(instrument.emoji, x + 20, instrumentY);
-				textAlign(LEFT, CENTER);
-				text(` × ${remainingLoops}`, x + 40, instrumentY);
-				
-				instrumentY += 25;
-			}
+	drawActiveInstruments() {
+		if (!settings.showInstrumentLabels) return;
+
+		push();
+		let beatBarY = 300;
+		let textStartY = beatBarY + settings.beatHeight + 100;
+		let textX = width / 2;
+		
+		textAlign(CENTER, CENTER);
+		
+		for (let [name, data] of this.activeInstruments) {
+			let instrument = data.instrument;
+			textSize(settings.instrumentLabelSize);
+			
+			// Draw text shadow for better visibility
+			fill(0, 0, 0, 150);
+			text(`${instrument.emoji} × ${data.remainingLoops}`, textX + 2, textStartY + 2);
+			
+			// Draw main text
+			fill(instrument.color);
+			text(`${instrument.emoji} × ${data.remainingLoops}`, textX, textStartY);
+			
+			textStartY += 50;
 		}
 		pop();
 	}
+}
+
+// Add new function for drawing waveform
+function drawWaveform() {
+	if (!settings.waveform.enabled) return;
+	
+	push();
+	const waveformData = analyzer.getValue();
+	
+	// Set drawing styles
+	stroke(settings.waveform.color + Math.floor(settings.waveform.opacity * 255).toString(16).padStart(2, '0'));
+	strokeWeight(settings.waveform.lineWidth);
+	noFill();
+	
+	// Draw waveform
+	beginShape();
+	for (let i = 0; i < waveformData.length; i++) {
+		const x = map(i, 0, waveformData.length, 
+					 settings.waveform.x - settings.waveform.width/2, 
+					 settings.waveform.x + settings.waveform.width/2);
+		const y = 1575 + 
+				 (waveformData[i] * settings.waveform.height * settings.waveform.scale);
+		vertex(x, y);
+	}
+	endShape();
+	pop();
+}
+
+// Add function to initialize dynamic settings
+function initializeSettings() {
+	// Set waveform position based on canvas size
+	settings.waveform.x = width/2;
+	settings.waveform.y = height - 100;
 }
