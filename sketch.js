@@ -8,6 +8,7 @@ let uiOverlay;
 let sound, fft;
 let analyzer;
 let waveform;
+let customFont;
 
 // Add debug state tracking
 let debugState = {
@@ -345,6 +346,9 @@ function resetBallPositions() {
 }
 
 function preload() {
+	// Load custom font
+	customFont = loadFont('assets/digit.TTF');
+	
 	// Load UI overlay
 	uiOverlay = loadImage('assets/demonheadui.png');
 	
@@ -727,9 +731,13 @@ class DrumMachine {
 		this.beatInterval = (60 / 140) * 1000; // Fixed to 140 BPM
 		this.beatsPerLoop = 8; // 8 beats per loop
 		this.nextCleanupTime = 0;
+		this.fadeOutDuration = 0.5; // Duration in seconds
+		this.visualEffects = new Map(); // Store visual effects for instruments
 	}
 
 	addInstrument(instrument, loops) {
+		let gainNode;
+		
 		// Stop any existing instance of this instrument
 		if (this.activeInstruments.has(instrument.name)) {
 			const existing = this.activeInstruments.get(instrument.name);
@@ -740,7 +748,17 @@ class DrumMachine {
 		
 		// Start the Tone.js player only
 		if (instrument.player && instrument.player.loaded) {
+			// Create a gain node for fade effects
+			gainNode = new Tone.Gain(1).toDestination();
+			instrument.player.connect(gainNode);
 			instrument.player.start();
+			
+			// Add entry animation
+			this.visualEffects.set(instrument.name, {
+				scale: 1.5,
+				opacity: 0,
+				state: 'entering'
+			});
 		}
 		
 		// Store the instrument with its loop count and precise timing info
@@ -750,12 +768,40 @@ class DrumMachine {
 			startTime: Tone.now(),
 			startBeat: this.currentBeat,
 			lastBeat: this.currentBeat,
-			expectedEndTime: Tone.now() + (loops * this.beatsPerLoop * this.beatInterval / 1000)
+			expectedEndTime: Tone.now() + (loops * this.beatsPerLoop * this.beatInterval / 1000),
+			gainNode: gainNode
 		});
 	}
 
 	update() {
 		const currentTime = Tone.now();
+		
+		// Update visual effects
+		for (let [name, effect] of this.visualEffects) {
+			switch(effect.state) {
+				case 'entering':
+					effect.scale = lerp(effect.scale, 1, 0.2);
+					effect.opacity = lerp(effect.opacity, 1, 0.2);
+					if (Math.abs(effect.scale - 1) < 0.01) {
+						effect.state = 'playing';
+					}
+					break;
+				case 'playing':
+					// Pulse effect on beat
+					if (this.currentBeat % 8 === 0) {
+						effect.scale = 1.1;
+					}
+					effect.scale = lerp(effect.scale, 1, 0.1);
+					break;
+				case 'ending':
+					effect.opacity = lerp(effect.opacity, 0, 0.1);
+					effect.scale = lerp(effect.scale, 0.8, 0.1);
+					if (effect.opacity < 0.01) {
+						this.visualEffects.delete(name);
+					}
+					break;
+			}
+		}
 		
 		// Update beat counter
 		if (millis() - this.lastUpdateTime >= this.beatInterval) {
@@ -779,6 +825,18 @@ class DrumMachine {
 				if (beatsPassed > 0 && this.currentBeat % this.beatsPerLoop === 0) {
 					data.remainingLoops--;
 					
+					// Start fade-out if it's the last loop
+					if (data.remainingLoops === 1) {
+						const effect = this.visualEffects.get(name);
+						if (effect) effect.state = 'ending';
+						
+						// Start volume fade-out
+						if (data.gainNode) {
+							data.gainNode.gain.linearRampToValueAtTime(0, 
+								Tone.now() + this.fadeOutDuration);
+						}
+					}
+					
 					// Remove instrument if no loops remain
 					if (data.remainingLoops <= 0) {
 						this.stopAndRemoveInstrument(name);
@@ -797,9 +855,18 @@ class DrumMachine {
 	stopAndRemoveInstrument(name) {
 		const data = this.activeInstruments.get(name);
 		if (data) {
-			// Stop Tone.js player
+			// Stop Tone.js player with fade out
 			if (data.instrument.player && data.instrument.player.loaded) {
-				data.instrument.player.stop();
+				if (data.gainNode) {
+					data.gainNode.gain.linearRampToValueAtTime(0, 
+						Tone.now() + this.fadeOutDuration);
+					setTimeout(() => {
+						data.instrument.player.stop();
+						data.gainNode.disconnect();
+					}, this.fadeOutDuration * 1000);
+				} else {
+					data.instrument.player.stop();
+				}
 			}
 			// Remove from active instruments
 			this.activeInstruments.delete(name);
@@ -871,18 +938,54 @@ class DrumMachine {
 		let textX = width / 2;
 		
 		textAlign(CENTER, CENTER);
+		textFont(customFont);
 		
 		for (let [name, data] of this.activeInstruments) {
 			let instrument = data.instrument;
+			let effect = this.visualEffects.get(name) || { scale: 1, opacity: 1 };
+			
+			// Calculate warning color for last loop
+			let warningAlpha = data.remainingLoops === 1 ? 
+				map(sin(frameCount * 0.1), -1, 1, 0.3, 0.8) : 1;
+			
+			push();
+			translate(textX, textStartY);
+			scale(effect.scale);
+			
 			textSize(settings.instrumentLabelSize);
 			
 			// Draw text shadow for better visibility
-			fill(0, 0, 0, 150);
-			text(`${instrument.emoji} × ${data.remainingLoops}`, textX + 2, textStartY + 2);
+			fill(0, 0, 0, 150 * effect.opacity);
+			text(`${instrument.emoji} × ${data.remainingLoops}`, 2, 2);
 			
-			// Draw main text
-			fill(instrument.color);
-			text(`${instrument.emoji} × ${data.remainingLoops}`, textX, textStartY);
+			// Set the text color with fallback
+			let textColor;
+			try {
+				// First attempt: Parse RGBA from instrument color
+				let rgbaValues = instrument.color.match(/[\d.]+/g);
+				if (rgbaValues && rgbaValues.length >= 3) {
+					textColor = color(
+						parseInt(rgbaValues[0]),
+						parseInt(rgbaValues[1]),
+						parseInt(rgbaValues[2]),
+						255 * effect.opacity * warningAlpha
+					);
+				} else {
+					// Second attempt: Use fallback color
+					textColor = color('#e8903d');
+					textColor.setAlpha(255 * effect.opacity * warningAlpha);
+				}
+			} catch (error) {
+				// Final fallback
+				textColor = color('#e8903d');
+				textColor.setAlpha(255 * effect.opacity * warningAlpha);
+			}
+			
+			// Apply the color
+			fill(textColor);
+			text(`${instrument.emoji} × ${data.remainingLoops}`, 0, 0);
+			
+			pop();
 			
 			textStartY += 50;
 		}
