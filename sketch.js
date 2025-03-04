@@ -289,14 +289,8 @@ function getRandomSpawnPosition() {
 }
 
 function getRandomInstrument() {
-	const totalWeight = INSTRUMENTS.reduce((sum, inst) => sum + inst.spawnWeight, 0);
-	let random = Math.random() * totalWeight;
-	
-	for (let instrument of INSTRUMENTS) {
-		random -= instrument.spawnWeight;
-		if (random <= 0) return instrument;
-	}
-	return INSTRUMENTS[0];
+	// Simple random selection since we don't have weights
+	return INSTRUMENTS[Math.floor(Math.random() * INSTRUMENTS.length)];
 }
 
 function spawnSingleBall(position = null) {
@@ -312,7 +306,7 @@ function spawnSingleBall(position = null) {
 	
 	const instrument = getRandomInstrument();
 	let ball = new balls.Sprite(position.x, position.y);
-	ball.instrument = instrument;
+	ball.instrument = instrument;  // Make sure to assign the instrument
 	ball.color = instrument.color;
 	ball.text = instrument.emoji;
 	noStroke();
@@ -1118,24 +1112,30 @@ class DrumMachine {
 			// Set the text color with fallback
 			let textColor;
 			try {
-				// First attempt: Parse RGBA from instrument color
-				let rgbaValues = instrument.color.match(/[\d.]+/g);
-				if (rgbaValues && rgbaValues.length >= 3) {
-					textColor = color(
-						parseInt(rgbaValues[0]),
-						parseInt(rgbaValues[1]),
-						parseInt(rgbaValues[2]),
-						255 * effect.opacity * warningAlpha
-					);
+				if (instrument.color.startsWith('#')) {
+					// Handle hex colors
+					let c = color(instrument.color);
+					textColor = color(red(c), green(c), blue(c), 255 * effect.opacity * warningAlpha);
+				} else if (instrument.color.startsWith('rgb')) {
+					// Handle RGB/RGBA colors
+					let rgbaValues = instrument.color.match(/[\d.]+/g);
+					if (rgbaValues && rgbaValues.length >= 3) {
+						textColor = color(
+							parseInt(rgbaValues[0]),
+							parseInt(rgbaValues[1]),
+							parseInt(rgbaValues[2]),
+							255 * effect.opacity * warningAlpha
+						);
+					} else {
+						textColor = color('#e8903d' + Math.floor(255 * effect.opacity * warningAlpha).toString(16).padStart(2, '0'));
+					}
 				} else {
-					// Second attempt: Use fallback color
-					textColor = color('#e8903d');
-					textColor.setAlpha(255 * effect.opacity * warningAlpha);
+					// Fallback color
+					textColor = color('#e8903d' + Math.floor(255 * effect.opacity * warningAlpha).toString(16).padStart(2, '0'));
 				}
 			} catch (error) {
 				// Final fallback
-				textColor = color('#e8903d');
-				textColor.setAlpha(255 * effect.opacity * warningAlpha);
+				textColor = color('#e8903d' + Math.floor(255 * effect.opacity * warningAlpha).toString(16).padStart(2, '0'));
 			}
 			
 			// Apply the color
