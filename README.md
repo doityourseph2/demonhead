@@ -1,6 +1,8 @@
 # Demonhead Drum Machine
 
-An interactive music creation experience that uses hand gestures and physics-based interactions to create dynamic musical compositions.
+An interactive music creation experience that uses hand gestures and physics-based interactions to create dynamic musical compositions. Features 40 unique instrument loops at 140 BPM.
+
+![Demonhead Drum Machine](assets/demonheadui.png)
 
 ## How to Use
 
@@ -53,28 +55,58 @@ An interactive music creation experience that uses hand gestures and physics-bas
 
 ### Available Instruments
 
-1. **Rhythm Section**
+1. **Drums & Beats**
 
-   - 🥁 Base Drums
-   - 🪘 Bolly Trap
+   - 🥁 Acid Beat
+   - 🔊 Amen Break
+   - 🌌 Atmosphere Beat
+   - 💥 Base Drums
+   - 🎵 Breakbeat A
+   - 🎶 Breakbeat Hithat
    - 🎧 Club Drums
+   - 👏 Dance Claps
+   - 💃 Dance Drums
+   - 🥁 Drum Beat
+   - 🎚 Dubstep Drums A
+   - ⚡ Electro Beat A/B
+   - ⚡ Energy Beat
+   - 🕺 Funky Drums
+   - 🎛 Glitch Beat
+   - 💥 Hard Drum
+   - 🔥 Hard Trap
+   - 🎪 Hithat
+   - 🥁 Offbeat Drums
+   - 👌 Snap Drums
+   - 🎭 Trap Drums
+   - 🌍 Zulu Drums
 
-2. **Melodic Elements**
+2. **Synths & Melodies**
 
    - 👽 Alien Synth
    - 🎹 Club Synth
    - 🎵 Melody
-   - 🎼 Piano
+   - 🎼 Melodic Chords
+   - 🎹 Piano
+   - 🚀 Space Synths
+   - 🎹 Trap Piano A
+   - 🎼 Trap Piano B
 
-3. **Effects & Atmosphere**
-
+3. **Bass & Effects**
+   - 🎸 Plingy Bass
    - 🚨 Siren
    - 🔔 Tambourine
-
-4. **Bass & Trap**
    - 💫 Techno Bass
    - 🎪 Typical Trap A
    - 🌟 Typical Trap B
+   - 🌊 Wobble Bass
+
+### Features
+
+- Up to 13 simultaneous instruments
+- Automatic volume balancing
+- Dynamic mixing based on instrument type
+- Real-time visual feedback
+- Physics-based interactions
 
 ### Advanced Features
 

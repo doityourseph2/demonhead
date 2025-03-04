@@ -21,18 +21,49 @@ let debugState = {
 
 // Instrument definitions
 const INSTRUMENTS = [
-	{ name: 'aliensynth', emoji: '👽', color: 'rgba(147, 51, 234, 0.8)', sound: null, spawnWeight: 1 },
-	{ name: 'basedrums', emoji: '🥁', color: 'rgba(220, 38, 38, 0.8)', sound: null, spawnWeight: 1 },
-	{ name: 'bollytrap', emoji: '🪘', color: 'rgba(234, 179, 8, 0.8)', sound: null, spawnWeight: 1 },
-	{ name: 'clubdrums', emoji: '🎧', color: 'rgba(34, 197, 94, 0.8)', sound: null, spawnWeight: 1 },
-	{ name: 'clubsynth', emoji: '🎹', color: 'rgba(59, 130, 246, 0.8)', sound: null, spawnWeight: 1 },
-	{ name: 'melody', emoji: '🎵', color: 'rgba(236, 72, 153, 0.8)', sound: null, spawnWeight: 1 },
-	{ name: 'piano', emoji: '🎼', color: 'rgba(14, 165, 233, 0.8)', sound: null, spawnWeight: 1 },
-	{ name: 'siren', emoji: '🚨', color: 'rgba(249, 115, 22, 0.8)', sound: null, spawnWeight: 1 },
-	{ name: 'tambourine', emoji: '🔔', color: 'rgba(168, 85, 247, 0.8)', sound: null, spawnWeight: 1 },
-	{ name: 'technobass', emoji: '💫', color: 'rgba(139, 92, 246, 0.8)', sound: null, spawnWeight: 1 },
-	{ name: 'typicaltrapA', emoji: '🎪', color: 'rgba(20, 184, 166, 0.8)', sound: null, spawnWeight: 1 },
-	{ name: 'typicaltrapB', emoji: '🌟', color: 'rgba(245, 158, 11, 0.8)', sound: null, spawnWeight: 1 }
+	// Drums & Beats
+	{ name: 'acidbeat', color: '#FF5733', emoji: '🥁', type: 'drums' },
+	{ name: 'amenbreak', color: '#C70039', emoji: '🔊', type: 'drums' },
+	{ name: 'atmospherebeat', color: '#900C3F', emoji: '🌌', type: 'drums' },
+	{ name: 'basedrums', color: '#581845', emoji: '💥', type: 'drums' },
+	{ name: 'breakbeatA', color: '#FF8D1A', emoji: '🎵', type: 'drums' },
+	{ name: 'breakbeathithat', color: '#39C7A5', emoji: '🎶', type: 'drums' },
+	{ name: 'clubdrums', color: '#3498DB', emoji: '🎧', type: 'drums' },
+	{ name: 'danceclaps', color: '#8E44AD', emoji: '👏', type: 'drums' },
+	{ name: 'dancedrums', color: '#2ECC71', emoji: '💃', type: 'drums' },
+	{ name: 'drumbeat', color: '#F1C40F', emoji: '🥁', type: 'drums' },
+	{ name: 'dubstepdrumsA', color: '#E74C3C', emoji: '🎚', type: 'drums' },
+	{ name: 'electrobeatA', color: '#1ABC9C', emoji: '⚡', type: 'drums' },
+	{ name: 'electrobeatB', color: '#16A085', emoji: '💫', type: 'drums' },
+	{ name: 'energybeat', color: '#27AE60', emoji: '⚡', type: 'drums' },
+	{ name: 'funkydrums', color: '#F39C12', emoji: '🕺', type: 'drums' },
+	{ name: 'glitchbeat', color: '#D35400', emoji: '🎛', type: 'drums' },
+	{ name: 'harddrum', color: '#C0392B', emoji: '💥', type: 'drums' },
+	{ name: 'hardtrap', color: '#8E44AD', emoji: '🔥', type: 'drums' },
+	{ name: 'hithat', color: '#2980B9', emoji: '🎪', type: 'drums' },
+	{ name: 'offbeatdrums', color: '#E67E22', emoji: '🥁', type: 'drums' },
+	{ name: 'snapdrums', color: '#95A5A6', emoji: '👌', type: 'drums' },
+	{ name: 'trapdrums', color: '#7F8C8D', emoji: '🎭', type: 'drums' },
+	{ name: 'zuludrums', color: '#BDC3C7', emoji: '��', type: 'drums' },
+
+	// Synths & Melodies
+	{ name: 'aliensynth', color: '#2C3E50', emoji: '👽', type: 'synth' },
+	{ name: 'clubsynth', color: '#34495E', emoji: '🎹', type: 'synth' },
+	{ name: 'melody', color: '#ECF0F1', emoji: '🎵', type: 'melody' },
+	{ name: 'melodicchords', color: '#95A5A6', emoji: '🎼', type: 'melody' },
+	{ name: 'piano', color: '#7F8C8D', emoji: '🎹', type: 'melody' },
+	{ name: 'spacesynths', color: '#BDC3C7', emoji: '🚀', type: 'synth' },
+	{ name: 'trappianoA', color: '#E74C3C', emoji: '🎹', type: 'melody' },
+	{ name: 'trappianoB', color: '#C0392B', emoji: '🎼', type: 'melody' },
+
+	// Bass & Effects
+	{ name: 'plingybass', color: '#E67E22', emoji: '🎸', type: 'bass' },
+	{ name: 'siren', color: '#D35400', emoji: '🚨', type: 'effects' },
+	{ name: 'tambourine', color: '#3498DB', emoji: '🔔', type: 'effects' },
+	{ name: 'technobass', color: '#2980B9', emoji: '💫', type: 'bass' },
+	{ name: 'typicaltrapA', color: '#8E44AD', emoji: '🎪', type: 'trap' },
+	{ name: 'typicaltrapB', color: '#9B59B6', emoji: '🌟', type: 'trap' },
+	{ name: 'wobblebass', color: '#2C3E50', emoji: '🌊', type: 'bass' }
 ];
 
 let settings = {
@@ -204,7 +235,8 @@ let settings = {
 			"BRING THE HEAT",
 			"ROCK THE HOUSE"
 		]
-	}
+	},
+	maxBalls: 13
 };
 
 // Track which balls are being held
