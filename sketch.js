@@ -84,13 +84,13 @@ let settings = {
 	
 	// Ball throw detection
 	throwVelocityThreshold: 10,
-	leftThrowZone: 100,  // pixels from left edge
-	rightThrowZone: 100,  // pixels from right edge
+	leftThrowZone: 200,  // pixels from left edge
+	rightThrowZone: 200,  // pixels from right edge
 	throwZoneHeight: 400, // height of throw zones from top
 	throwZoneY: 545,       // Y offset from top
 	throwZoneColor: 'rgba(255, 0, 0, 0.2)', // Visual indicator for throw zones
-	showThrowZones: true,
-	showThrowZoneOutline: true, // Show border around throw zones
+	showThrowZones: false,
+	showThrowZoneOutline: false, // Show border around throw zones
 	
 	// Visual feedback
 	showInstrumentLabels: true,
@@ -430,10 +430,14 @@ function resetBallPositions() {
 
 function preload() {
 	// Load custom font
-	customFont = loadFont('assets/digit.TTF');
+	customFont = loadFont('assets/digit.TTF', () => {
+		updateLoadingProgress('font');
+	});
 	
 	// Load UI overlay
-	uiOverlay = loadImage('assets/demonheadui.png');
+	uiOverlay = loadImage('assets/demonheadui.png', () => {
+		updateLoadingProgress('UI overlay');
+	});
 	
 	// Load the handPose model
 	handPose = ml5.handPose({ flipped: true });
@@ -445,13 +449,20 @@ function preload() {
 	// Load loop sounds
 	INSTRUMENTS.forEach(inst => {
 		try {
-			inst.sound = loadSound(`loops/${inst.name}140bpm.mp3`);
+			inst.sound = loadSound(`loops/${inst.name}140bpm.mp3`, () => {
+				updateLoadingProgress(`${inst.name} sound`);
+			}, 
+			(error) => {
+				console.warn(`Could not load loop for ${inst.name}:`, error);
+				updateLoadingProgress(`${inst.name} (failed)`);
+			});
 			// Configure the sound as a loop
 			if (inst.sound) {
 				inst.sound.setLoop(true);
 			}
 		} catch (error) {
 			console.warn(`Could not load loop for ${inst.name}:`, error);
+			updateLoadingProgress(`${inst.name} (failed)`);
 		}
 	});
 }
@@ -746,9 +757,9 @@ function draw() {
 	
 	// Draw hand tracking points LAST (after UI overlay)
 	if (settings.handVis.enabled && hands.length > 0) {
-		for (let i = 0; i < hands.length; i++) {
-			let hand = hands[i];
-			
+	for (let i = 0; i < hands.length; i++) {
+		let hand = hands[i];
+		
 			// Check if hand is pinching
 			const isPinch = isPinching(hand);
 			
@@ -760,7 +771,7 @@ function draw() {
 			const fingerTips = [4, 8, 12, 16, 20]; // Indices for fingertips
 			
 			for (let j = 0; j < hand.keypoints.length; j++) {
-				let keypoint = hand.keypoints[j];
+			let keypoint = hand.keypoints[j];
 				
 				// Check if point is within boundaries
 				if (keypoint.x >= settings.handVis.minX && 
