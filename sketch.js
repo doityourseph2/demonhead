@@ -245,6 +245,11 @@ let heldBalls = new Map();  // Map to store held balls and their hold time
 // Add spawn position tracking
 let availableSpawnPositions = [];
 
+// Add these constants at the top with other global variables
+const CANVAS_WIDTH = 1080;  // 9:16 ratio for 1920 height
+const CANVAS_HEIGHT = 1920;
+const ASPECT_RATIO = 9/16;
+
 function initializeSpawnPositions() {
 	availableSpawnPositions = [];
 	
@@ -468,8 +473,9 @@ function preload() {
 	// Load the handPose model
 	handPose = ml5.handPose({ flipped: true });
 
-	// Create the webcam video and hide it
+	// Create the webcam video with enforced dimensions
 	video = createCapture(VIDEO);
+	video.size(CANVAS_WIDTH, CANVAS_HEIGHT);
 	video.hide();
 
 	// Load loop sounds
@@ -494,7 +500,8 @@ function preload() {
 }
 
 function setup() {
-	createCanvas(video.width, video.height);
+	// Create canvas with fixed dimensions
+	createCanvas(CANVAS_WIDTH, CANVAS_HEIGHT);
 	displayMode(MAXED);
 	imageMode(CENTER);
 	userStartAudio();
@@ -679,7 +686,24 @@ function draw() {
 	translate(settings.cameraX, settings.cameraY);
 	scale(settings.cameraScale);
 	
-	image(video, width/2, height/2, width, height);
+	// Calculate video display dimensions to maintain aspect ratio
+	let videoX = width/2;
+	let videoY = height/2;
+	let videoWidth = width;
+	let videoHeight = height;
+	
+	// Crop video to maintain 9:16 aspect ratio
+	let videoAspect = video.width / video.height;
+	if (videoAspect > ASPECT_RATIO) {
+		// Video is too wide, crop sides
+		videoWidth = video.height * ASPECT_RATIO;
+	} else if (videoAspect < ASPECT_RATIO) {
+		// Video is too tall, crop top/bottom
+		videoHeight = video.width / ASPECT_RATIO;
+	}
+	
+	// Draw cropped video
+	image(video, videoX, videoY, videoWidth, videoHeight);
 	
 	// Update held balls before drawing
 	updateHeldBalls();
