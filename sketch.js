@@ -686,27 +686,43 @@ function draw() {
 	translate(settings.cameraX, settings.cameraY);
 	scale(settings.cameraScale);
 	
+	// Initialize camera transform object with default values
+	const cameraTransform = {
+		scale: 1,
+		offsetX: 0,
+		offsetY: 0,
+		videoWidth: width,
+		videoHeight: height,
+		videoX: width/2,
+		videoY: height/2
+	};
+	
 	// Calculate video display dimensions to maintain aspect ratio
-	let videoX = width/2;
-	let videoY = height/2;
-	let videoWidth = width;
-	let videoHeight = height;
+	const playAreaTop = height/3.58;
+	const playAreaBottom = height/1.53;
+	const playAreaHeight = playAreaBottom - playAreaTop;
+	const playAreaCenter = playAreaTop + (playAreaHeight / 2);
 	
-	// Crop video to maintain 9:16 aspect ratio
-	let videoAspect = video.width / video.height;
-	if (videoAspect > ASPECT_RATIO) {
-		// Video is too wide, crop sides
-		videoWidth = video.height * ASPECT_RATIO;
-	} else if (videoAspect < ASPECT_RATIO) {
-		// Video is too tall, crop top/bottom
-		videoHeight = video.width / ASPECT_RATIO;
-	}
+	// Calculate scaling factors
+	const videoAspect = video.width / video.height;
+	const scaleX = width / video.width;
+	const scaleY = playAreaHeight / video.height;
 	
-	// Draw cropped video
-	image(video, videoX, videoY, videoWidth, videoHeight);
+	// Update camera transform with calculated values
+	cameraTransform.scale = Math.max(scaleX, scaleY);
+	cameraTransform.videoWidth = video.width * cameraTransform.scale;
+	cameraTransform.videoHeight = video.height * cameraTransform.scale;
+	cameraTransform.videoX = width/2;
+	cameraTransform.videoY = playAreaCenter;
+	cameraTransform.offsetX = cameraTransform.videoX - (cameraTransform.videoWidth/2);
+	cameraTransform.offsetY = cameraTransform.videoY - (cameraTransform.videoHeight/2);
+	
+	// Draw scaled and centered video
+	image(video, cameraTransform.videoX, cameraTransform.videoY, 
+		  cameraTransform.videoWidth, cameraTransform.videoHeight);
 	
 	// Update held balls before drawing
-	updateHeldBalls();
+	updateHeldBalls(cameraTransform);
 	
 	// Draw grid before other elements
 	drawGrid();
@@ -847,8 +863,38 @@ function draw() {
 
 // Callback function for when handPose outputs data
 function gotHands(results) {
-	// save the output to the hands variable
-	hands = results;
+	// Only process if we have valid results
+	if (!results || !results.length) {
+		hands = results;
+		return;
+	}
+
+	// Calculate transform values consistently with draw function
+	const playAreaTop = height/3.58;
+	const playAreaBottom = height/1.53;
+	const playAreaHeight = playAreaBottom - playAreaTop;
+	const playAreaCenter = playAreaTop + (playAreaHeight / 2);
+	
+	const scaleX = width / video.width;
+	const scaleY = playAreaHeight / video.height;
+	const scale = Math.max(scaleX, scaleY);
+	
+	const transformedResults = results.map(hand => {
+		// Create a new hand object to avoid modifying the original
+		const transformedHand = {...hand};
+		
+		if (hand.keypoints) {
+			transformedHand.keypoints = hand.keypoints.map(point => ({
+				...point,
+				x: (point.x * scale) + (width/2 - (video.width * scale)/2),
+				y: (point.y * scale) + (playAreaCenter - (video.height * scale)/2)
+			}));
+		}
+		
+		return transformedHand;
+	});
+	
+	hands = transformedResults;
 }
 
 class DrumMachine {
@@ -1279,7 +1325,7 @@ function findNearestBall(x, y, maxDistance) {
 }
 
 // Add new function to handle ball movement
-function updateHeldBalls() {
+function updateHeldBalls(cameraTransform) {
 	if (!hands || hands.length === 0) {
 		// Release all balls if no hands detected
 		heldBalls.clear();
@@ -1315,7 +1361,7 @@ function updateHeldBalls() {
 				}
 			}
 			
-			// Update held ball position
+			// Update held ball position with camera transform applied
 			const heldBall = heldBalls.get(handId);
 			if (heldBall) {
 				const targetX = pinchPoint.x + heldBall.offset.x;
