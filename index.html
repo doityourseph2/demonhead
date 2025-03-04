@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8" />
+	
+	<title>Demonhead Drum Machine</title>
+	<link rel="icon" type="image/png" href="favicon-32x32.png" sizes="32x32">
+
+	<style>
+		@font-face {
+			font-family: 'Digit';
+			src: url('assets/digit.TTF') format('truetype');
+		}
+
+		html,
+		body {
+			width: 100vw;
+			height: 100vh;
+			margin: 0;
+			padding: 0;
+			overscroll-behavior: none;
+			background-image: url('assets/background.png');
+			background-size: cover;
+			background-position: center;
+			background-repeat: no-repeat;
+			background-attachment: fixed;
+		}
+
+		main {
+			width: 100%;
+			height: 100%;
+			position: relative;
+			z-index: 1;
+		}
+
+		#loading-screen {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(0, 0, 0, 0.9);
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			align-items: center;
+			z-index: 9999;
+			color: #e8903d;
+		}
+
+		.loading-content {
+			text-align: center;
+		}
+
+		.loading-title {
+			font-family: 'Digit', sans-serif;
+			font-size: 4em;
+			margin-bottom: 20px;
+			text-transform: uppercase;
+			letter-spacing: 3px;
+			color: #e8903d;
+		}
+
+		.loading-progress {
+			width: 200px;
+			height: 4px;
+			background: #531c10;
+			border-radius: 2px;
+			margin: 20px auto;
+			position: relative;
+			overflow: hidden;
+		}
+
+		.progress-bar {
+			position: absolute;
+			left: 0;
+			top: 0;
+			height: 100%;
+			width: 0%;
+			background: #e8903d;
+			transition: width 0.3s ease;
+		}
+
+		.loading-text {
+			font-family: 'Digit', sans-serif;
+			font-size: 1.2em;
+			margin-top: 10px;
+			color: #656d9c;
+		}
+
+		.loading-spinner {
+			width: 50px;
+			height: 50px;
+			border: 3px solid #531c10;
+			border-top: 3px solid #e8903d;
+			border-radius: 50%;
+			animation: spin 1s linear infinite;
+			margin: 20px auto;
+		}
+
+		@keyframes spin {
+			0% { transform: rotate(0deg); }
+			100% { transform: rotate(360deg); }
+		}
+
+		.hidden {
+			opacity: 0;
+			pointer-events: none;
+			transition: opacity 0.5s ease;
+		}
+
+		/* Hide DAT.GUI by default */
+		.dg.ac {
+			display: none !important;
+		}
+	</style>
+</head>
+
+<body>   
+	<div id="loading-screen">
+		<div class="loading-content">
+			<h1 class="loading-title">Demonhead</h1>
+			<div class="loading-spinner"></div>
+			<div class="loading-progress">
+				<div class="progress-bar" id="progress-bar"></div>
+			</div>
+			<p class="loading-text" id="loading-text">Loading assets...</p>
+		</div>
+	</div>
+
+	<main>
+		<script src="https://q5js.org/q5.js"></script>
+		<script src="https://p5play.org/v3/planck.min.js"></script>
+		<script src="https://p5play.org/v3/p5play.js"></script>
+		<script src="https://unpkg.com/ml5@1/dist/ml5.min.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
+		
+		<link rel="stylesheet" type="text/css" href="styles.css">	
+		<script src="sketch.js"></script>
+	</main>
+
+	<script>
+		let totalAssets = 14; // 12 audio files + font + UI image
+		let loadedAssets = 0;
+		let loadingScreen = document.getElementById('loading-screen');
+		let progressBar = document.getElementById('progress-bar');
+		let loadingText = document.getElementById('loading-text');
+
+		// Function to update loading progress
+		function updateLoadingProgress(item) {
+			loadedAssets++;
+			let progress = (loadedAssets / totalAssets) * 100;
+			progressBar.style.width = progress + '%';
+			loadingText.textContent = `Loading ${item}... ${Math.round(progress)}%`;
+
+			if (loadedAssets >= totalAssets) {
+				setTimeout(() => {
+					loadingScreen.classList.add('hidden');
+					setTimeout(() => {
+						loadingScreen.style.display = 'none';
+					}, 500);
+				}, 500);
+			}
+		}
+
+		// Handle DAT.GUI visibility
+		document.addEventListener('keydown', function(event) {
+			if (event.key.toLowerCase() === 'h') {
+				const guiElement = document.querySelector('.dg.ac');
+				if (guiElement) {
+					guiElement.style.display = guiElement.style.display === 'none' ? 'block' : 'none';
+				}
+			}
+		});
+
+		// Expose the function globally so it can be called from sketch.js
+		window.updateLoadingProgress = updateLoadingProgress;
+	</script>
+</body>
+
+</html>
