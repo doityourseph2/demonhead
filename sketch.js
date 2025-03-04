@@ -104,6 +104,38 @@ let settings = {
 	maxRetries: 3,
 	retryDelay: 500,
 	
+	// Grid Visualization settings
+	grid: {
+		enabled: true,
+		x: 0,
+		y: 1416,
+		width: 1000,
+		height: 275,
+		cellSize: 60,
+		primaryColor: 'rgba(255, 255, 255, 1)',  // Full opacity
+		secondaryColor: 'rgba(83, 28, 16, 1)',  // Full opacity
+		lineWidth: 1,
+		rotation: 0,          // Reset rotation to 0
+		scale: 1,
+		perspective: 0,       // Remove perspective effect
+		animate: true,
+		animationSpeed: -0.2   // Slower animation speed
+	},
+	
+	// Hand Tracking Visualization
+	handVis: {
+		enabled: true,
+		dotSize: 10,
+		leftHandColor: 'rgba(255, 0, 255, 0.6)',
+		rightHandColor: 'rgba(255, 255, 0, 0.6)',
+		showFingerTips: true,
+		showPalmPoints: false,
+		minY: 0,      // Will be set in setup
+		maxY: 0,      // Will be set in setup
+		minX: 0,      // Will be set in setup
+		maxX: 0       // Will be set in setup
+	},
+	
 	// Actions
 	resetBalls: function() {
 		resetBallPositions();
@@ -145,10 +177,33 @@ let settings = {
 		height: 100,
 		scale: 1,
 		smoothing: 0.8,
-		color: '#da3832',
+		color: '#ff0000',
 		opacity: 0.5,
 		lineWidth: 4,
 		enabled: true
+	},
+	// Add new banner system settings to the settings object
+	banner: {
+		enabled: true,
+		x: 0,
+		y: 1285,
+		speed: 3,  // Increased speed
+		fontSize: 52,
+		color: '#656d9c',
+		spacing: 4,
+		cropOffset: 70,  // Add crop offset to hide text at edges
+		messages: [
+			"DON'T STOP THE BEAT!",
+			"KEEP IT UP!",
+			"GROOVY TUNES",
+			"PUMP IT UP",
+			"FEEL THE RHYTHM",
+			"DROP THE BEAT",
+			"MAKE SOME NOISE",
+			"LET'S JAM",
+			"BRING THE HEAT",
+			"ROCK THE HOUSE"
+		]
 	}
 };
 
@@ -293,6 +348,24 @@ function setupGUI() {
 	beatFolder.add(settings, 'showBeatGrid').name('Show Grid');
 	beatFolder.add(settings, 'beatGridOpacity', 0, 1).name('Grid Opacity');
 	
+	// Grid Visualization
+	let gridFolder = gui.addFolder('Background Grid');
+	gridFolder.add(settings.grid, 'enabled').name('Show Grid');
+	gridFolder.add(settings.grid, 'x', 0, width).name('Position X');
+	gridFolder.add(settings.grid, 'y', 0, height).name('Position Y');
+	gridFolder.add(settings.grid, 'width', 100, width).name('Width');
+	gridFolder.add(settings.grid, 'height', 50, 500).name('Height');
+	gridFolder.add(settings.grid, 'cellSize', 10, 100).name('Cell Size');
+	gridFolder.addColor(settings.grid, 'primaryColor').name('Primary Color');
+	gridFolder.addColor(settings.grid, 'secondaryColor').name('Secondary Color');
+	gridFolder.add(settings.grid, 'lineWidth', 0.1, 5).name('Line Width');
+	gridFolder.add(settings.grid, 'rotation', -180, 180).name('Rotation');
+	gridFolder.add(settings.grid, 'scale', 0.1, 3).name('Scale');
+	gridFolder.add(settings.grid, 'perspective', 0, 1).name('Perspective');
+	gridFolder.add(settings.grid, 'animate').name('Animate');
+	gridFolder.add(settings.grid, 'animationSpeed', 0.1, 2).name('Anim Speed');
+	gridFolder.open();
+	
 	// Actions
 	let actionsFolder = gui.addFolder('Actions');
 	actionsFolder.add(settings, 'resetBalls').name('Reset Balls');
@@ -322,6 +395,16 @@ function setupGUI() {
 	waveformFolder.add(settings.waveform, 'lineWidth', 1, 5).name('Line Width');
 	waveformFolder.addColor(settings.waveform, 'color').name('Color');
 	waveformFolder.open();
+	
+	// Hand Visualization Settings
+	let handVisFolder = gui.addFolder('Hand Visualization');
+	handVisFolder.add(settings.handVis, 'enabled').name('Show Hand Points');
+	handVisFolder.add(settings.handVis, 'dotSize', 4, 20).name('Dot Size');
+	handVisFolder.add(settings.handVis, 'showFingerTips').name('Show Fingers');
+	handVisFolder.add(settings.handVis, 'showPalmPoints').name('Show Palm');
+	handVisFolder.addColor(settings.handVis, 'leftHandColor').name('Left Hand');
+	handVisFolder.addColor(settings.handVis, 'rightHandColor').name('Right Hand');
+	handVisFolder.open();
 	
 	// Open important folders by default
 	visualFolder.open();
@@ -396,6 +479,8 @@ function setup() {
 	balls.bounciness = settings.ballBounciness;
 	balls.friction = settings.ballFriction;
 	balls.drag = settings.ballDrag;
+	balls.rotationDrag = 0.2;  // Add rotation drag for stability
+	balls.mass = 1;  // Standardize mass
 	
 	updateBoundaries();
 	setupGUI();
@@ -426,6 +511,9 @@ function setup() {
 			console.warn(`Could not load loop for ${inst.name}:`, error);
 		}
 	});
+
+	// Initialize banner system
+	bannerSystem = new BannerSystem();
 }
 
 function updateBoundaries() {
@@ -555,6 +643,12 @@ function draw() {
 	scale(settings.cameraScale);
 	
 	image(video, width/2, height/2, width, height);
+	
+	// Update held balls before drawing
+	updateHeldBalls();
+	
+	// Draw grid before other elements
+	drawGrid();
 
 	// Update and draw drum machine
 	drumMachine.update();
@@ -563,14 +657,11 @@ function draw() {
 	// Check for raised hands gesture to clear instruments
 	if (hands.length >= 2) {
 		let handsRaised = hands.filter(hand => {
-			// Get wrist keypoint (index 0 in keypoints array)
 			let wrist = hand.keypoints[0];
 			return wrist && wrist.y < height/5;
 		});
 		
-		// If both hands are raised, clear instruments
 		if (handsRaised.length >= 2) {
-			// Visual feedback - draw a highlight effect
 			push();
 			noFill();
 			stroke(255, 255, 0);
@@ -578,9 +669,8 @@ function draw() {
 			rect(0, 0, width, height/5);
 			pop();
 			
-			// Clear all instruments and stop all audio
+			// Clear instruments code...
 			for (let [name, data] of drumMachine.activeInstruments) {
-				// Stop both P5 sound and Tone.js player
 				if (data.instrument.sound && data.instrument.sound.isLoaded()) {
 					data.instrument.sound.stop();
 				}
@@ -590,7 +680,6 @@ function draw() {
 			}
 			drumMachine.activeInstruments.clear();
 			
-			// Additional safety: stop all Tone.js players
 			INSTRUMENTS.forEach(inst => {
 				if (inst.player && inst.player.loaded) {
 					inst.player.stop();
@@ -639,68 +728,6 @@ function draw() {
 			}
 		}
 	}
-
-	if (hands.length > 0) {
-	for (let i = 0; i < hands.length; i++) {
-	let hand = hands[i];
-	let index = hand.index_finger_tip;
-	let thumb = hand.thumb_tip;
-
-			let d = dist(index.x, index.y, thumb.x, thumb.y);
-			let pinchX = (index.x + thumb.x) / 2;
-			let pinchY = (index.y + thumb.y) / 2;
-			
-			// Handle pinching mechanics
-			if (d < settings.pinchThreshold) {
-				fill(0);
-				// Check for new balls to grab
-				for (let ball of balls) {
-					let ballDist = dist(pinchX, pinchY, ball.x, ball.y);
-					if (ballDist < settings.pinchRadius) {
-						if (!heldBalls.has(ball)) {
-							heldBalls.set(ball, frameCount); // Start tracking this ball
-						}
-						
-						// Calculate hold duration factor
-						let holdDuration = frameCount - heldBalls.get(ball);
-						let holdFactor = min(holdDuration / 30, 1); // Max effect after 30 frames
-						
-						// Apply stronger movement for longer-held balls
-						let strength = settings.pinchForce * (1 + holdFactor);
-						ball.moveTowards(pinchX, pinchY, strength);
-						
-						// Apply smoothing based on hold duration
-						let smoothing = settings.pinchSmoothing * (1 + holdFactor * 0.5);
-						ball.vel.x *= smoothing;
-						ball.vel.y *= smoothing;
-					}
-				}
-			} else if (d > settings.releaseThreshold) {
-				// Only fully release when fingers are far apart
-				heldBalls.clear();
-				fill(255);
-			}
-
-	noStroke();
-	circle(index.x, index.y, 16);
-	circle(thumb.x, thumb.y, 16);
-		}
-}
-
-	// Draw all the tracked hand points
-	for (let i = 0; i < hands.length; i++) {
-		let hand = hands[i];
-		for (let j = 0; j < hand.keypoints.length; j++) {
-			let keypoint = hand.keypoints[j];
-			if (hand.handedness == "Left") {
-				fill(255, 0, 255);
-			} else {
-				fill(255, 255, 0);
-			}
-			noStroke();
-			circle(keypoint.x, keypoint.y, 10);
-		}
-	}
 	
 	// Draw waveform
 	drawWaveform();
@@ -710,8 +737,49 @@ function draw() {
 		image(uiOverlay, width/2, height/2, width, height);
 	}
 	
-	// Draw active instruments text on top of everything
+	// Draw active instruments text
 	drumMachine.drawActiveInstruments();
+	
+	// Update and draw banner
+	bannerSystem.update();
+	bannerSystem.draw();
+	
+	// Draw hand tracking points LAST (after UI overlay)
+	if (settings.handVis.enabled && hands.length > 0) {
+		for (let i = 0; i < hands.length; i++) {
+			let hand = hands[i];
+			
+			// Check if hand is pinching
+			const isPinch = isPinching(hand);
+			
+			// Set color based on hand and pinch state
+			const baseColor = hand.handedness === "Left" ? "#e8903d" : "#ffffff";
+			const handColor = isPinch ? color(baseColor) : color(baseColor + '80'); // Add transparency when not pinching
+			
+			// Only draw thumb tip and fingertips
+			const fingerTips = [4, 8, 12, 16, 20]; // Indices for fingertips
+			
+			for (let j = 0; j < hand.keypoints.length; j++) {
+				let keypoint = hand.keypoints[j];
+				
+				// Check if point is within boundaries
+				if (keypoint.x >= settings.handVis.minX && 
+					keypoint.x <= settings.handVis.maxX && 
+					keypoint.y >= settings.handVis.minY && 
+					keypoint.y <= settings.handVis.maxY) {
+					
+					// Only draw fingertips
+					if (fingerTips.includes(j)) {
+						push();
+						fill(handColor);
+						noStroke();
+						circle(keypoint.x, keypoint.y, 10); // Fixed dot size
+						pop();
+					}
+				}
+			}
+		}
+	}
 	
 	pop();
 }
@@ -771,6 +839,52 @@ class DrumMachine {
 			expectedEndTime: Tone.now() + (loops * this.beatsPerLoop * this.beatInterval / 1000),
 			gainNode: gainNode
 		});
+
+		// Add banner notification with descriptive text based on instrument type
+		if (bannerSystem) {
+			let message;
+			switch(instrument.name) {
+				case 'aliensynth':
+					message = "ALIEN SYNTH JOINS THE MIX";
+					break;
+				case 'basedrums':
+					message = "BASE DRUMS DROPPING IN";
+					break;
+				case 'bollytrap':
+					message = "BOLLY TRAP BEATS ADDED";
+					break;
+				case 'clubdrums':
+					message = "CLUB DRUMS HITTING THE BEAT";
+					break;
+				case 'clubsynth':
+					message = "CLUB SYNTH TAKING OVER";
+					break;
+				case 'melody':
+					message = "MELODY LINE FLOWING IN";
+					break;
+				case 'piano':
+					message = "PIANO KEYS JOINING THE GROOVE";
+					break;
+				case 'siren':
+					message = "SIREN SOUNDS INCOMING";
+					break;
+				case 'tambourine':
+					message = "TAMBOURINE SHAKING IT UP";
+					break;
+				case 'technobass':
+					message = "TECHNO BASS DROPPING";
+					break;
+				case 'typicaltrapA':
+					message = "TRAP BEATS ROLLING IN";
+					break;
+				case 'typicaltrapB':
+					message = "TRAP RHYTHM ADDED";
+					break;
+				default:
+					message = "NEW SOUND ADDED TO THE MIX";
+			}
+			bannerSystem.addEventMessage(message);
+		}
 	}
 
 	update() {
@@ -1024,4 +1138,239 @@ function initializeSettings() {
 	// Set waveform position based on canvas size
 	settings.waveform.x = width/2;
 	settings.waveform.y = height - 100;
+	
+	// Initialize hand tracking boundaries
+	settings.handVis.minY = height/3.58 + settings.boundaryThickness;
+	settings.handVis.maxY = height/1.53 - settings.boundaryThickness;
+	settings.handVis.minX = settings.boundaryOffset + settings.boundaryThickness;
+	settings.handVis.maxX = width - settings.boundaryOffset - settings.boundaryThickness;
+}
+
+// Add new function for drawing the grid
+function drawGrid() {
+	if (!settings.grid.enabled) return;
+	
+	push();
+	translate(settings.grid.x, settings.grid.y);
+	
+	// Calculate grid dimensions with overlap
+	const cols = Math.ceil(settings.grid.width / settings.grid.cellSize) + 1;
+	const rows = Math.ceil(settings.grid.height / settings.grid.cellSize) + 1;
+	
+	// Animation offset (slower and more precise)
+	const animOffset = settings.grid.animate ? 
+		(frameCount * settings.grid.animationSpeed) % settings.grid.cellSize : 0;
+	
+	// Draw cells with overlap to prevent gaps
+	for (let i = -1; i <= cols; i++) {
+		for (let j = -1; j <= rows; j++) {
+			const x = Math.floor(i * settings.grid.cellSize - animOffset);
+			const y = Math.floor(j * settings.grid.cellSize - animOffset);
+			
+			// Dark red fill for all squares
+			fill('#531c10');  // Dark red
+			stroke('rgba(255, 255, 255, 0.2)'); // Light red
+			strokeWeight(2);
+			
+			// Draw cell with 1px overlap to prevent gaps
+			rect(x, y, settings.grid.cellSize + 1, settings.grid.cellSize + 1);
+		}
+	}
+	
+	pop();
+}
+
+// Add new function to check pinch gesture
+function isPinching(hand) {
+	if (!hand || !hand.keypoints) return false;
+	
+	const thumb = hand.keypoints[4];  // Thumb tip
+	const index = hand.keypoints[8];  // Index tip
+	
+	if (!thumb || !index) return false;
+	
+	const distance = dist(thumb.x, thumb.y, index.x, index.y);
+	return distance < settings.pinchThreshold;
+}
+
+// Add new function to find nearest ball to a point
+function findNearestBall(x, y, maxDistance) {
+	let nearest = null;
+	let minDist = maxDistance;
+	
+	for (let ball of balls) {
+		if (heldBalls.has(ball)) continue;  // Skip already held balls
+		
+		const d = dist(x, y, ball.x, ball.y);
+		if (d < minDist) {
+			minDist = d;
+			nearest = ball;
+		}
+	}
+	
+	return nearest;
+}
+
+// Add new function to handle ball movement
+function updateHeldBalls() {
+	if (!hands || hands.length === 0) {
+		// Release all balls if no hands detected
+		heldBalls.clear();
+		return;
+	}
+	
+	for (let hand of hands) {
+		const thumb = hand.keypoints[4];
+		const index = hand.keypoints[8];
+		
+		if (!thumb || !index) continue;
+		
+		const pinchPoint = {
+			x: (thumb.x + index.x) / 2,
+			y: (thumb.y + index.y) / 2
+		};
+		
+		const isPinch = isPinching(hand);
+		const handId = hand.handedness.toLowerCase();
+		
+		if (isPinch) {
+			// Try to grab a ball if not holding one
+			if (!heldBalls.has(handId)) {
+				const nearestBall = findNearestBall(pinchPoint.x, pinchPoint.y, settings.pinchRadius);
+				if (nearestBall) {
+					heldBalls.set(handId, {
+						ball: nearestBall,
+						offset: {
+							x: nearestBall.x - pinchPoint.x,
+							y: nearestBall.y - pinchPoint.y
+						}
+					});
+				}
+			}
+			
+			// Update held ball position
+			const heldBall = heldBalls.get(handId);
+			if (heldBall) {
+				const targetX = pinchPoint.x + heldBall.offset.x;
+				const targetY = pinchPoint.y + heldBall.offset.y;
+				
+				// Smooth movement using lerp
+				heldBall.ball.x = lerp(heldBall.ball.x, targetX, settings.pinchSmoothing);
+				heldBall.ball.y = lerp(heldBall.ball.y, targetY, settings.pinchSmoothing);
+				
+				// Update velocity for throw detection
+				heldBall.ball.vel.x = (targetX - heldBall.ball.x) / deltaTime;
+				heldBall.ball.vel.y = (targetY - heldBall.ball.y) / deltaTime;
+			}
+		} else {
+			// Release ball if no longer pinching
+			if (heldBalls.has(handId)) {
+				heldBalls.delete(handId);
+			}
+		}
+	}
+}
+
+// Add banner system class
+class BannerSystem {
+	constructor() {
+		this.messages = settings.banner.messages;
+		this.currentMessage = 0;
+		this.x = width - settings.banner.cropOffset;  // Start from cropped position
+		this.messageQueue = [];
+		this.lastEventTime = 0;
+		this.eventDelay = 3000; // Time between event messages
+		this.idleDelay = 2000;  // Shorter delay between idle messages
+		this.lastIdleTime = 0;
+	}
+
+	addEventMessage(message) {
+		const now = millis();
+		if (now - this.lastEventTime > this.eventDelay) {
+			this.messageQueue.push(message);
+			this.lastEventTime = now;
+		}
+	}
+
+	update() {
+		if (!settings.banner.enabled) return;
+
+		// Move banner
+		this.x -= settings.banner.speed;
+
+		// Get current message and calculate total width
+		const message = this.messageQueue.length > 0 ? 
+			this.messageQueue[0] : 
+			this.messages[this.currentMessage];
+		let totalWidth = 0;
+		for (let char of message) {
+			totalWidth += textWidth(char);
+		}
+
+		// Reset position and cycle messages when completely off screen
+		if (this.x < -(totalWidth + settings.banner.cropOffset)) {
+			this.x = width + settings.banner.cropOffset; // Start from further right
+			if (this.messageQueue.length > 0) {
+				this.messageQueue.shift();
+			} else {
+				const now = millis();
+				if (now - this.lastIdleTime > this.idleDelay) {
+					this.currentMessage = (this.currentMessage + 1) % this.messages.length;
+					this.lastIdleTime = now;
+				}
+			}
+		}
+	}
+
+	draw() {
+		if (!settings.banner.enabled) return;
+
+		push();
+		const maskWidth = width - (settings.banner.cropOffset * 2);
+		const maskX = settings.banner.cropOffset;
+		const fadeWidth = 60; // Width of the fade effect for each letter
+		
+		// Setup text properties
+		textFont(customFont);
+		textSize(settings.banner.fontSize);
+		textAlign(LEFT, CENTER);
+		noStroke();
+		
+		const message = this.getCurrentMessage();
+		let currentX = this.x;
+		
+		// Parse the base color components
+		const baseColorObj = color(settings.banner.color);
+		const r = red(baseColorObj);
+		const g = green(baseColorObj);
+		const b = blue(baseColorObj);
+		
+		// Draw each character individually with its own fade effect
+		for (let i = 0; i < message.length; i++) {
+			const char = message[i];
+			const charWidth = textWidth(char);
+			
+			// Calculate alpha based on character position
+			let alpha = 255;
+			if (currentX < maskX + fadeWidth) {
+				alpha = map(currentX, maskX, maskX + fadeWidth, 0, 255);
+			}
+			
+			// Only draw visible characters
+			if (currentX + charWidth > maskX && currentX < maskX + maskWidth) {
+				fill(r, g, b, alpha);
+				text(char, currentX, settings.banner.y);
+			}
+			
+			currentX += charWidth;
+		}
+		
+		pop();
+	}
+
+	getCurrentMessage() {
+		return this.messageQueue.length > 0 ? 
+			this.messageQueue[0] : 
+			this.messages[this.currentMessage];
+	}
 }
