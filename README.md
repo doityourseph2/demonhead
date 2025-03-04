@@ -2,8 +2,6 @@
 
 An interactive music creation experience that uses hand gestures and physics-based interactions to create dynamic musical compositions.
 
-![Demonhead Drum Machine](assets/demonheadui.png)
-
 ## How to Use
 
 ### Getting Started
