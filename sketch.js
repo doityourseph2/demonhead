@@ -33,7 +33,7 @@ const INSTRUMENTS = [
 	{ name: 'dancedrums', color: '#2ECC71', emoji: '💃', type: 'drums' },
 	{ name: 'drumbeat', color: '#F1C40F', emoji: '🥁', type: 'drums' },
 	{ name: 'dubstepdrumsA', color: '#E74C3C', emoji: '🎚', type: 'drums' },
-	{ name: 'electrobeatA', color: '#1ABC9C', emoji: '⚡', type: 'drums' },
+	{ name: 'electrobeatA', color: '#1ABC9C', emoji: '💨', type: 'drums' },
 	{ name: 'electrobeatB', color: '#16A085', emoji: '💫', type: 'drums' },
 	{ name: 'energybeat', color: '#27AE60', emoji: '⚡', type: 'drums' },
 	{ name: 'funkydrums', color: '#F39C12', emoji: '🕺', type: 'drums' },
@@ -44,7 +44,7 @@ const INSTRUMENTS = [
 	{ name: 'offbeatdrums', color: '#E67E22', emoji: '🥁', type: 'drums' },
 	{ name: 'snapdrums', color: '#95A5A6', emoji: '👌', type: 'drums' },
 	{ name: 'trapdrums', color: '#7F8C8D', emoji: '🎭', type: 'drums' },
-	{ name: 'zuludrums', color: '#BDC3C7', emoji: '��', type: 'drums' },
+	{ name: 'zuludrums', color: '#BDC3C7', emoji: '🛢️', type: 'drums' },
 
 	// Synths & Melodies
 	{ name: 'aliensynth', color: '#2C3E50', emoji: '👽', type: 'synth' },
@@ -233,7 +233,16 @@ let settings = {
 			"MAKE SOME NOISE",
 			"LET'S JAM",
 			"BRING THE HEAT",
-			"ROCK THE HOUSE"
+			"ROCK THE HOUSE",
+			"CAN'T STOP, WON'T STOP",
+			"MUSIC MAKE YOU LOSE CONTROL",
+			"DANCE TO THE BEAT",
+			"GET DOWN",
+			"HIT THE FLOOR",
+			"JUMP ON IT",
+			"KEEP IT GOING",
+			"LET'S DANCE",
+			
 		]
 	},
 	maxBalls: 13
