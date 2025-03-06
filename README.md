@@ -2,7 +2,7 @@
 
 An interactive music creation experience that uses hand gestures and physics-based interactions to create dynamic musical compositions. Features 40 unique instrument loops at 140 BPM.
 
-![Demonhead Drum Machine](assets/demonheadui.png)
+![Demonhead Drum Machine](assets/demon0.png)
 
 ## How to Use
 
