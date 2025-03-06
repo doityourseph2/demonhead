@@ -9,6 +9,13 @@ let sound, fft;
 let analyzer;
 let waveform;
 let customFont;
+let videoWidth;
+let videoHeight;
+
+// Set up aspect ratio for canvas
+const CANVAS_WIDTH = 1080;
+const CANVAS_HEIGHT = 1920;
+const ASPECT_RATIO = 9/16;
 
 // Add debug state tracking
 let debugState = {
@@ -103,7 +110,7 @@ let settings = {
 	pinchSmoothing: 0.1,    // Smooth ball movement (0-1)
 	
 	// Drum machine settings
-	bpm: 120,
+	bpm: 140,
 	beatWidth: 1000,
 	beatHeight: 200,
 	loopDuration: 4, // seconds per loop
@@ -254,10 +261,6 @@ let heldBalls = new Map();  // Map to store held balls and their hold time
 // Add spawn position tracking
 let availableSpawnPositions = [];
 
-// Add these constants at the top with other global variables
-const CANVAS_WIDTH = 1080;  // 9:16 ratio for 1920 height
-const CANVAS_HEIGHT = 1920;
-const ASPECT_RATIO = 9/16;
 
 function initializeSpawnPositions() {
 	availableSpawnPositions = [];
@@ -468,7 +471,39 @@ function resetBallPositions() {
 	}
 }
 
-function preload() {
+async function preload() {
+    // Check the browser window size
+    try {
+        const resolution = {
+            width: window.innerWidth,
+            height: window.innerHeight
+        };
+        const browserAspectRatio = resolution.width / resolution.height;
+
+        let videoWidth, videoHeight;
+        if (browserAspectRatio > ASPECT_RATIO) {
+            videoHeight = resolution.height;
+            videoWidth = videoHeight * ASPECT_RATIO;
+        } else {
+            videoWidth = resolution.width;
+            videoHeight = videoWidth / ASPECT_RATIO;
+        }
+
+		 // If the detected resolution does not match the constant canvas values, set to 1280x720
+		 if (videoWidth !== 1080 || videoHeight !== 1920) {
+			videoWidth = 720;
+			videoHeight = 1280;
+		}
+
+		console.log(`Canvas dimensions set to: ${videoWidth}x${videoHeight}`);
+    } catch (error) {
+        console.warn('Could not determine browser window size:', error);
+        // Fallback to default resolution
+        videoWidth = 1080;
+        videoHeight = 1920;
+        console.log(`Fallback canvas dimensions set to: ${videoWidth}x${videoHeight}`);
+    }
+
 	// Load custom font
 	customFont = loadFont('assets/digit.TTF', () => {
 		updateLoadingProgress('font');
@@ -482,10 +517,11 @@ function preload() {
 	// Load the handPose model
 	handPose = ml5.handPose({ flipped: true });
 
-	// Create the webcam video with enforced dimensions
-	video = createCapture(VIDEO);
-	video.size(CANVAS_WIDTH, CANVAS_HEIGHT);
-	video.hide();
+	// Create the webcam video with dynamic dimensions
+    video = createCapture(VIDEO);
+    video.size(videoWidth, videoHeight);
+    video.hide();
+ 
 
 	// Load loop sounds
 	INSTRUMENTS.forEach(inst => {
@@ -509,11 +545,11 @@ function preload() {
 }
 
 function setup() {
-	// Create canvas with fixed dimensions
-	createCanvas(CANVAS_WIDTH, CANVAS_HEIGHT);
-	displayMode(MAXED);
-	imageMode(CENTER);
-	userStartAudio();
+	 // Create canvas with fixed dimensions
+	 createCanvas(CANVAS_WIDTH, CANVAS_HEIGHT);
+	 displayMode(MAXED);
+	 imageMode(CENTER);
+	 userStartAudio();
 	
 	// Initialize dynamic settings after canvas is created
 	initializeSettings();
@@ -696,39 +732,39 @@ function draw() {
 	scale(settings.cameraScale);
 	
 	// Initialize camera transform object with default values
-	const cameraTransform = {
-		scale: 1,
-		offsetX: 0,
-		offsetY: 0,
-		videoWidth: width,
-		videoHeight: height,
-		videoX: width/2,
-		videoY: height/2
-	};
-	
-	// Calculate video display dimensions to maintain aspect ratio
-	const playAreaTop = height/3.58;
-	const playAreaBottom = height/1.53;
-	const playAreaHeight = playAreaBottom - playAreaTop;
-	const playAreaCenter = playAreaTop + (playAreaHeight / 2);
-	
-	// Calculate scaling factors
-	const videoAspect = video.width / video.height;
-	const scaleX = width / video.width;
-	const scaleY = playAreaHeight / video.height;
-	
-	// Update camera transform with calculated values
-	cameraTransform.scale = Math.max(scaleX, scaleY);
-	cameraTransform.videoWidth = video.width * cameraTransform.scale;
-	cameraTransform.videoHeight = video.height * cameraTransform.scale;
-	cameraTransform.videoX = width/2;
-	cameraTransform.videoY = playAreaCenter;
-	cameraTransform.offsetX = cameraTransform.videoX - (cameraTransform.videoWidth/2);
-	cameraTransform.offsetY = cameraTransform.videoY - (cameraTransform.videoHeight/2);
-	
-	// Draw scaled and centered video
-	image(video, cameraTransform.videoX, cameraTransform.videoY, 
-		  cameraTransform.videoWidth, cameraTransform.videoHeight);
+    const cameraTransform = {
+        scale: 1,
+        offsetX: 0,
+        offsetY: 0,
+        videoWidth: width,
+        videoHeight: height,
+        videoX: width / 2,
+        videoY: height / 2
+    };
+
+    // Calculate video display dimensions to maintain aspect ratio
+    const playAreaTop = height / 3.58;
+    const playAreaBottom = height / 1.53;
+    const playAreaHeight = playAreaBottom - playAreaTop;
+    const playAreaCenter = playAreaTop + (playAreaHeight / 2);
+
+    // Calculate scaling factors
+    const videoAspect = video.width / video.height;
+    const scaleX = width / video.width;
+    const scaleY = playAreaHeight / video.height;
+
+    // Update camera transform with calculated values
+    cameraTransform.scale = Math.max(scaleX, scaleY);
+    cameraTransform.videoWidth = video.width * cameraTransform.scale;
+    cameraTransform.videoHeight = video.height * cameraTransform.scale;
+    cameraTransform.videoX = width / 2;
+    cameraTransform.videoY = playAreaCenter;
+    cameraTransform.offsetX = cameraTransform.videoX - (cameraTransform.videoWidth / 2);
+    cameraTransform.offsetY = cameraTransform.videoY - (cameraTransform.videoHeight / 2);
+
+    // Draw scaled and centered video
+    image(video, cameraTransform.videoX, cameraTransform.videoY, 
+          cameraTransform.videoWidth, cameraTransform.videoHeight);
 	
 	// Update held balls before drawing
 	updateHeldBalls(cameraTransform);
