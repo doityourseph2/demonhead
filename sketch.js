@@ -489,11 +489,11 @@ async function preload() {
             videoHeight = videoWidth / ASPECT_RATIO;
         }
 
-		 // If the detected resolution does not match the constant canvas values, set to 1280x720
-		 if (videoWidth !== 1080 || videoHeight !== 1920) {
-			videoWidth = 720;
-			videoHeight = 1280;
-		}
+		//  // If the detected resolution does not match the constant canvas values, set to 1280x720
+		//  if (videoWidth !== 1080 || videoHeight !== 1920) {
+		// 	videoWidth = 720;
+		// 	videoHeight = 1280;
+		// }
 
 		console.log(`Canvas dimensions set to: ${videoWidth}x${videoHeight}`);
     } catch (error) {
